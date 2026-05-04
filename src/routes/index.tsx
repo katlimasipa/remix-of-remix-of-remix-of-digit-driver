@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthScreen } from "@/components/AuthScreen";
+import { Footer } from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
+import { LogOut, Save } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
