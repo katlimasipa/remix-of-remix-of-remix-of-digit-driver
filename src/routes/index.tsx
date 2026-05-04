@@ -76,6 +76,8 @@ function Dashboard() {
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
+  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
+
   // Load token from profile on login
   useEffect(() => {
     if (!user) {
@@ -128,7 +130,6 @@ function Dashboard() {
   }
   if (!user) return <AuthScreen />;
 
-
   const statusColor = !s?.connected
     ? "text-muted-foreground"
     : s?.running
@@ -136,7 +137,6 @@ function Dashboard() {
     : "text-warn";
   const statusLabel = !s?.connected ? "Disconnected" : s?.running ? "Running" : s?.authorized ? "Idle" : "Connecting…";
 
-  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
