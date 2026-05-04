@@ -407,6 +407,7 @@ function Dashboard() {
         .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted-foreground); }
         .btn-ghost:hover { color: var(--foreground); }
       `}</style>
+      <Footer />
     </div>
   );
 }
