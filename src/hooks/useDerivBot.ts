@@ -15,11 +15,7 @@ const DEFAULT_CFG: BotConfig = {
 export function useDerivBot() {
   const botRef = useRef<DerivBot | null>(null);
   const [state, setState] = useState<BotState | null>(null);
-  const [cfg, setCfg] = useState<BotConfig>(() => {
-    if (typeof window === "undefined") return DEFAULT_CFG;
-    const token = sessionStorage.getItem("deriv_token") || "";
-    return { ...DEFAULT_CFG, token };
-  });
+  const [cfg, setCfg] = useState<BotConfig>(DEFAULT_CFG);
 
   useEffect(() => {
     const bot = new DerivBot(cfg);
@@ -34,10 +30,6 @@ export function useDerivBot() {
 
   useEffect(() => {
     botRef.current?.updateConfig(cfg);
-    if (typeof window !== "undefined") {
-      if (cfg.token) sessionStorage.setItem("deriv_token", cfg.token);
-      else sessionStorage.removeItem("deriv_token");
-    }
   }, [cfg]);
 
   return {
