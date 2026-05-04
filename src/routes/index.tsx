@@ -52,7 +52,24 @@ function useAnimatedNumber(value: number, duration = 400) {
 function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const { state, cfg, setCfg, start, stop, reset, connect } = useDerivBot();
-  const s = state!;
+  const s = state ?? {
+    connected: false,
+    running: false,
+    authorized: false,
+    balance: null,
+    currency: "USD",
+    lastDigit: null,
+    lastPrice: null,
+    streak: 0,
+    ticks: [],
+    trades: [],
+    pnl: 0,
+    wins: 0,
+    losses: 0,
+    totalTrades: 0,
+    error: null,
+    pendingTrade: false,
+  };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [tokenInput, setTokenInput] = useState("");
   const [savingToken, setSavingToken] = useState(false);
