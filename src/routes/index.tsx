@@ -50,9 +50,67 @@ function useAnimatedNumber(value: number, duration = 400) {
 }
 
 function Dashboard() {
+  const { user, loading, signOut } = useAuth();
   const { state, cfg, setCfg, start, stop, reset, connect } = useDerivBot();
   const s = state!;
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
+  const [tokenInput, setTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  // Load token from profile on login
+  useEffect(() => {
+    if (!user) {
+      setTokenLoaded(false);
+      setTokenInput("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("deriv_token")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const token = data?.deriv_token ?? "";
+      setTokenInput(token);
+      setCfg((c) => ({ ...c, token }));
+      setTokenLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function saveToken() {
+    if (!user) return;
+    setSavingToken(true);
+    setSavedMsg(null);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ deriv_token: tokenInput })
+      .eq("id", user.id);
+    setSavingToken(false);
+    if (error) setSavedMsg("Save failed");
+    else {
+      setCfg({ ...cfg, token: tokenInput });
+      setSavedMsg("Token saved");
+      setTimeout(() => setSavedMsg(null), 2000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) return <AuthScreen />;
+
 
   const statusColor = !s?.connected
     ? "text-muted-foreground"
