@@ -141,6 +141,15 @@ function Dashboard() {
           <div className="text-muted-foreground font-mono">
             {s?.currency} <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
           </div>
+          <div className="hidden sm:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          <button
+            onClick={() => signOut()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Log out"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Log out</span>
+          </button>
         </div>
       </header>
 
@@ -148,23 +157,36 @@ function Dashboard() {
         {/* LEFT: Controls */}
         <section className="bg-background p-5 space-y-5">
           <SectionLabel>Connection</SectionLabel>
-          <Field label="API Token (Deriv)">
+          <Field label="Deriv API Token">
             <input
               type="password"
-              value={cfg.token}
-              onChange={(e) => setCfg({ ...cfg, token: e.target.value })}
-              placeholder="Paste demo API token"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder={tokenLoaded ? "Paste demo API token" : "Loading…"}
               className="input"
               autoComplete="off"
             />
           </Field>
-          <button
-            className="btn-secondary w-full"
-            onClick={connect}
-            disabled={!cfg.token || s?.connected}
-          >
-            {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="btn-secondary inline-flex items-center justify-center gap-1.5"
+              onClick={saveToken}
+              disabled={savingToken || !tokenInput || tokenInput === cfg.token}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {savingToken ? "Saving…" : "Save"}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={connect}
+              disabled={!cfg.token || s?.connected}
+            >
+              {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
+            </button>
+          </div>
+          {savedMsg && (
+            <div className="text-[11px] text-muted-foreground">{savedMsg}</div>
+          )}
 
           <Divider />
           <SectionLabel>Strategy</SectionLabel>
