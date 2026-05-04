@@ -81,7 +81,7 @@ function Dashboard() {
         </div>
       </header>
 
-      <main className="grid gap-px bg-border" style={{ gridTemplateColumns: "minmax(280px,320px) 1fr minmax(260px,300px)" }}>
+      <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
         {/* LEFT: Controls */}
         <section className="bg-background p-5 space-y-5">
           <SectionLabel>Connection</SectionLabel>
