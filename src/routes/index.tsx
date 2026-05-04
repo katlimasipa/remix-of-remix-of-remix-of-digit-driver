@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthScreen } from "@/components/AuthScreen";
+import { Footer } from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
+import { LogOut, Save } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,9 +50,67 @@ function useAnimatedNumber(value: number, duration = 400) {
 }
 
 function Dashboard() {
+  const { user, loading, signOut } = useAuth();
   const { state, cfg, setCfg, start, stop, reset, connect } = useDerivBot();
   const s = state!;
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
+  const [tokenInput, setTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  // Load token from profile on login
+  useEffect(() => {
+    if (!user) {
+      setTokenLoaded(false);
+      setTokenInput("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("deriv_token")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const token = data?.deriv_token ?? "";
+      setTokenInput(token);
+      setCfg((c) => ({ ...c, token }));
+      setTokenLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  async function saveToken() {
+    if (!user) return;
+    setSavingToken(true);
+    setSavedMsg(null);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ deriv_token: tokenInput })
+      .eq("id", user.id);
+    setSavingToken(false);
+    if (error) setSavedMsg("Save failed");
+    else {
+      setCfg({ ...cfg, token: tokenInput });
+      setSavedMsg("Token saved");
+      setTimeout(() => setSavedMsg(null), 2000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) return <AuthScreen />;
+
 
   const statusColor = !s?.connected
     ? "text-muted-foreground"
@@ -78,6 +141,15 @@ function Dashboard() {
           <div className="text-muted-foreground font-mono">
             {s?.currency} <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
           </div>
+          <div className="hidden sm:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          <button
+            onClick={() => signOut()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Log out"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Log out</span>
+          </button>
         </div>
       </header>
 
@@ -85,23 +157,36 @@ function Dashboard() {
         {/* LEFT: Controls */}
         <section className="bg-background p-5 space-y-5">
           <SectionLabel>Connection</SectionLabel>
-          <Field label="API Token (Deriv)">
+          <Field label="Deriv API Token">
             <input
               type="password"
-              value={cfg.token}
-              onChange={(e) => setCfg({ ...cfg, token: e.target.value })}
-              placeholder="Paste demo API token"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder={tokenLoaded ? "Paste demo API token" : "Loading…"}
               className="input"
               autoComplete="off"
             />
           </Field>
-          <button
-            className="btn-secondary w-full"
-            onClick={connect}
-            disabled={!cfg.token || s?.connected}
-          >
-            {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="btn-secondary inline-flex items-center justify-center gap-1.5"
+              onClick={saveToken}
+              disabled={savingToken || !tokenInput || tokenInput === cfg.token}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {savingToken ? "Saving…" : "Save"}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={connect}
+              disabled={!cfg.token || s?.connected}
+            >
+              {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
+            </button>
+          </div>
+          {savedMsg && (
+            <div className="text-[11px] text-muted-foreground">{savedMsg}</div>
+          )}
 
           <Divider />
           <SectionLabel>Strategy</SectionLabel>
@@ -322,6 +407,7 @@ function Dashboard() {
         .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted-foreground); }
         .btn-ghost:hover { color: var(--foreground); }
       `}</style>
+      <Footer />
     </div>
   );
 }
