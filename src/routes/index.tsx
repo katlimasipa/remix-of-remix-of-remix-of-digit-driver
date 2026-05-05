@@ -365,6 +365,14 @@ function Dashboard() {
             )}
             <button className="btn-ghost" onClick={reset}>Reset</button>
           </div>
+          <button
+            className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
+            onClick={endAndSaveSession}
+            disabled={savingSession || !s || s.totalTrades === 0}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {savingSession ? "Saving…" : "End & Save Session"}
+          </button>
 
           {s?.error && (
             <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
