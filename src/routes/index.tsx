@@ -51,7 +51,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { user, loading, signOut } = useAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect } = useDerivBot();
+  const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
@@ -71,52 +71,77 @@ function Dashboard() {
     pendingTrade: false,
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [tokenInput, setTokenInput] = useState("");
+  const [accountType, setAccountType] = useState<"demo" | "real">("demo");
+  const [demoToken, setDemoToken] = useState("");
+  const [realToken, setRealToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [confirmReal, setConfirmReal] = useState(false);
+
+  const activeToken = accountType === "real" ? realToken : demoToken;
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
-  // Load token from profile on login
+  // Load tokens + preferred account type from profile
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
-      setTokenInput("");
+      setDemoToken("");
+      setRealToken("");
       return;
     }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("deriv_token")
+        .select("deriv_token_demo, deriv_token_real, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const token = data?.deriv_token ?? "";
-      setTokenInput(token);
-      setCfg((c) => ({ ...c, token }));
+      const dt = data?.deriv_token_demo ?? "";
+      const rt = data?.deriv_token_real ?? "";
+      const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
+      setDemoToken(dt);
+      setRealToken(rt);
+      setAccountType(at);
+      setCfg((c) => ({ ...c, token: at === "real" ? rt : dt }));
       setTokenLoaded(true);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // When user switches account type, swap active token & disconnect any active session
+  function switchAccount(next: "demo" | "real") {
+    if (next === accountType) return;
+    if (next === "real" && !confirmReal) {
+      setConfirmReal(true);
+      return;
+    }
+    setAccountType(next);
+    setConfirmReal(false);
+    disconnect();
+    const tok = next === "real" ? realToken : demoToken;
+    setCfg({ ...cfg, token: tok });
+    if (user) {
+      supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
+    }
+  }
 
   async function saveToken() {
     if (!user) return;
     setSavingToken(true);
     setSavedMsg(null);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ deriv_token: tokenInput })
-      .eq("id", user.id);
+    const patch = accountType === "real"
+      ? { deriv_token_real: realToken }
+      : { deriv_token_demo: demoToken };
+    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
     setSavingToken(false);
     if (error) setSavedMsg("Save failed");
     else {
-      setCfg({ ...cfg, token: tokenInput });
-      setSavedMsg("Token saved");
+      setCfg({ ...cfg, token: activeToken });
+      setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
       setTimeout(() => setSavedMsg(null), 2000);
     }
   }
