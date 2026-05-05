@@ -40,5 +40,6 @@ export function useDerivBot() {
     start: () => botRef.current?.start(),
     stop: () => botRef.current?.stop(),
     reset: () => botRef.current?.resetSession(),
+    disconnect: () => botRef.current?.disconnect(),
   };
 }
