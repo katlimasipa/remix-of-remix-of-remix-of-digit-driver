@@ -4,8 +4,9 @@ import { useDerivBot } from "@/hooks/useDerivBot";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
+import { SessionHistory } from "@/components/SessionHistory";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Save } from "lucide-react";
+import { LogOut, Save, Archive } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -78,6 +79,41 @@ function Dashboard() {
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [confirmReal, setConfirmReal] = useState(false);
+  const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
+  const [historyKey, setHistoryKey] = useState(0);
+  const [savingSession, setSavingSession] = useState(false);
+
+  async function endAndSaveSession() {
+    if (!user) return;
+    if (!s || s.totalTrades === 0) {
+      // Just reset if nothing to save
+      stop();
+      reset();
+      setSessionStart(Date.now());
+      return;
+    }
+    setSavingSession(true);
+    stop();
+    const { error } = await supabase.from("trading_sessions").insert({
+      user_id: user.id,
+      account_type: accountType,
+      pnl: Number(s.pnl.toFixed(4)),
+      wins: s.wins,
+      losses: s.losses,
+      total_trades: s.totalTrades,
+      stake: cfg.stake,
+      target_digit: cfg.targetDigit,
+      repetition_count: cfg.repetitionCount,
+      started_at: new Date(sessionStart).toISOString(),
+      ended_at: new Date().toISOString(),
+    });
+    setSavingSession(false);
+    if (!error) {
+      reset();
+      setSessionStart(Date.now());
+      setHistoryKey((k) => k + 1);
+    }
+  }
 
   const activeToken = accountType === "real" ? realToken : demoToken;
 
@@ -329,6 +365,14 @@ function Dashboard() {
             )}
             <button className="btn-ghost" onClick={reset}>Reset</button>
           </div>
+          <button
+            className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
+            onClick={endAndSaveSession}
+            disabled={savingSession || !s || s.totalTrades === 0}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            {savingSession ? "Saving…" : "End & Save Session"}
+          </button>
 
           {s?.error && (
             <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
@@ -438,6 +482,8 @@ function Dashboard() {
               <EmptyState>Trades will appear here once the bot fires.</EmptyState>
             )}
           </Panel>
+
+          <SessionHistory userId={user.id} refreshKey={historyKey} />
         </section>
 
         {/* RIGHT: Stats */}
