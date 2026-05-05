@@ -4,8 +4,9 @@ import { useDerivBot } from "@/hooks/useDerivBot";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
+import { SessionHistory } from "@/components/SessionHistory";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Save } from "lucide-react";
+import { LogOut, Save, Archive } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
