@@ -79,6 +79,41 @@ function Dashboard() {
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [confirmReal, setConfirmReal] = useState(false);
+  const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
+  const [historyKey, setHistoryKey] = useState(0);
+  const [savingSession, setSavingSession] = useState(false);
+
+  async function endAndSaveSession() {
+    if (!user) return;
+    if (!s || s.totalTrades === 0) {
+      // Just reset if nothing to save
+      stop();
+      reset();
+      setSessionStart(Date.now());
+      return;
+    }
+    setSavingSession(true);
+    stop();
+    const { error } = await supabase.from("trading_sessions").insert({
+      user_id: user.id,
+      account_type: accountType,
+      pnl: Number(s.pnl.toFixed(4)),
+      wins: s.wins,
+      losses: s.losses,
+      total_trades: s.totalTrades,
+      stake: cfg.stake,
+      target_digit: cfg.targetDigit,
+      repetition_count: cfg.repetitionCount,
+      started_at: new Date(sessionStart).toISOString(),
+      ended_at: new Date().toISOString(),
+    });
+    setSavingSession(false);
+    if (!error) {
+      reset();
+      setSessionStart(Date.now());
+      setHistoryKey((k) => k + 1);
+    }
+  }
 
   const activeToken = accountType === "real" ? realToken : demoToken;
 
