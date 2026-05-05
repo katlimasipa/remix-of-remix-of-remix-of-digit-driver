@@ -470,7 +470,7 @@ function Dashboard() {
           <Row k="Duration" v="1 tick" />
 
           <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Token stays in your browser only — never sent to any third-party server. Use a Deriv demo token.
+            Tokens stay in your browser only — never sent to any third-party server. Demo and Real tokens are stored separately on your account.
           </p>
         </section>
       </main>
