@@ -224,7 +224,7 @@ function Dashboard() {
                 );
               })}
             </div>
-            {accountType === "real" && (
+            {accountType === "real" && !s?.authorized && (
               <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
                 Live trading uses real funds. Trade at your own risk.
               </div>
