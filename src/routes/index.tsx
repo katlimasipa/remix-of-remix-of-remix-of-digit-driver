@@ -482,6 +482,8 @@ function Dashboard() {
               <EmptyState>Trades will appear here once the bot fires.</EmptyState>
             )}
           </Panel>
+
+          <SessionHistory userId={user.id} refreshKey={historyKey} />
         </section>
 
         {/* RIGHT: Stats */}
