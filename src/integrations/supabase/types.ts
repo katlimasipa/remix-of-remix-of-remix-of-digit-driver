@@ -16,22 +16,31 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
+          account_type: string
           created_at: string
           deriv_token: string | null
+          deriv_token_demo: string | null
+          deriv_token_real: string | null
           email: string | null
           id: string
           updated_at: string
         }
         Insert: {
+          account_type?: string
           created_at?: string
           deriv_token?: string | null
+          deriv_token_demo?: string | null
+          deriv_token_real?: string | null
           email?: string | null
           id: string
           updated_at?: string
         }
         Update: {
+          account_type?: string
           created_at?: string
           deriv_token?: string | null
+          deriv_token_demo?: string | null
+          deriv_token_real?: string | null
           email?: string | null
           id?: string
           updated_at?: string

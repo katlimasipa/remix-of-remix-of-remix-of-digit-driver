@@ -51,7 +51,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { user, loading, signOut } = useAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect } = useDerivBot();
+  const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
@@ -71,52 +71,77 @@ function Dashboard() {
     pendingTrade: false,
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [tokenInput, setTokenInput] = useState("");
+  const [accountType, setAccountType] = useState<"demo" | "real">("demo");
+  const [demoToken, setDemoToken] = useState("");
+  const [realToken, setRealToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [confirmReal, setConfirmReal] = useState(false);
+
+  const activeToken = accountType === "real" ? realToken : demoToken;
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
-  // Load token from profile on login
+  // Load tokens + preferred account type from profile
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
-      setTokenInput("");
+      setDemoToken("");
+      setRealToken("");
       return;
     }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("deriv_token")
+        .select("deriv_token_demo, deriv_token_real, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const token = data?.deriv_token ?? "";
-      setTokenInput(token);
-      setCfg((c) => ({ ...c, token }));
+      const dt = data?.deriv_token_demo ?? "";
+      const rt = data?.deriv_token_real ?? "";
+      const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
+      setDemoToken(dt);
+      setRealToken(rt);
+      setAccountType(at);
+      setCfg((c) => ({ ...c, token: at === "real" ? rt : dt }));
       setTokenLoaded(true);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // When user switches account type, swap active token & disconnect any active session
+  function switchAccount(next: "demo" | "real") {
+    if (next === accountType) return;
+    if (next === "real" && !confirmReal) {
+      setConfirmReal(true);
+      return;
+    }
+    setAccountType(next);
+    setConfirmReal(false);
+    disconnect();
+    const tok = next === "real" ? realToken : demoToken;
+    setCfg({ ...cfg, token: tok });
+    if (user) {
+      supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
+    }
+  }
 
   async function saveToken() {
     if (!user) return;
     setSavingToken(true);
     setSavedMsg(null);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ deriv_token: tokenInput })
-      .eq("id", user.id);
+    const patch = accountType === "real"
+      ? { deriv_token_real: realToken }
+      : { deriv_token_demo: demoToken };
+    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
     setSavingToken(false);
     if (error) setSavedMsg("Save failed");
     else {
-      setCfg({ ...cfg, token: tokenInput });
-      setSavedMsg("Token saved");
+      setCfg({ ...cfg, token: activeToken });
+      setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
       setTimeout(() => setSavedMsg(null), 2000);
     }
   }
@@ -174,12 +199,67 @@ function Dashboard() {
         {/* LEFT: Controls */}
         <section className="bg-background p-5 space-y-5">
           <SectionLabel>Connection</SectionLabel>
-          <Field label="Deriv API Token">
+
+          {/* Account type toggle */}
+          <div className="space-y-2">
+            <span className="text-[11px] text-muted-foreground">Account</span>
+            <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
+              {(["demo", "real"] as const).map((m) => {
+                const active = accountType === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => switchAccount(m)}
+                    className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
+                      active
+                        ? m === "real"
+                          ? "bg-bear text-white"
+                          : "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {m === "demo" ? "Demo" : "Real"}
+                  </button>
+                );
+              })}
+            </div>
+            {accountType === "real" && (
+              <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+                Live trading uses real funds. Trade at your own risk.
+              </div>
+            )}
+            {confirmReal && accountType === "demo" && (
+              <div className="space-y-1.5 rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">
+                <div>Switching to <b>Real</b> will trade with real money. Confirm?</div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => switchAccount("real")}
+                    className="rounded bg-bear px-2 py-1 text-[11px] text-white"
+                  >
+                    Confirm Real
+                  </button>
+                  <button
+                    onClick={() => setConfirmReal(false)}
+                    className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
             <input
               type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder={tokenLoaded ? "Paste demo API token" : "Loading…"}
+              value={accountType === "real" ? realToken : demoToken}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (accountType === "real") setRealToken(v);
+                else setDemoToken(v);
+              }}
+              placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
               className="input"
               autoComplete="off"
             />
@@ -188,7 +268,7 @@ function Dashboard() {
             <button
               className="btn-secondary inline-flex items-center justify-center gap-1.5"
               onClick={saveToken}
-              disabled={savingToken || !tokenInput || tokenInput === cfg.token}
+              disabled={savingToken || !activeToken}
             >
               <Save className="h-3.5 w-3.5" />
               {savingToken ? "Saving…" : "Save"}
@@ -196,7 +276,7 @@ function Dashboard() {
             <button
               className="btn-secondary"
               onClick={connect}
-              disabled={!cfg.token || s?.connected}
+              disabled={!activeToken || s?.connected}
             >
               {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
             </button>
@@ -390,7 +470,7 @@ function Dashboard() {
           <Row k="Duration" v="1 tick" />
 
           <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Token stays in your browser only — never sent to any third-party server. Use a Deriv demo token.
+            Tokens stay in your browser only — never sent to any third-party server. Demo and Real tokens are stored separately on your account.
           </p>
         </section>
       </main>

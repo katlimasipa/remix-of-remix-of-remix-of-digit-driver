@@ -285,5 +285,6 @@ export class DerivBot {
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.ws?.close();
     this.ws = null;
+    this.patch({ connected: false, authorized: false, balance: null, lastDigit: null, lastPrice: null, streak: 0, ticks: [] });
   }
 }
