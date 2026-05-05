@@ -47,6 +47,54 @@ export type Database = {
         }
         Relationships: []
       }
+      trading_sessions: {
+        Row: {
+          account_type: string
+          created_at: string
+          ended_at: string
+          id: string
+          losses: number
+          pnl: number
+          repetition_count: number | null
+          stake: number | null
+          started_at: string
+          target_digit: number | null
+          total_trades: number
+          user_id: string
+          wins: number
+        }
+        Insert: {
+          account_type: string
+          created_at?: string
+          ended_at?: string
+          id?: string
+          losses?: number
+          pnl?: number
+          repetition_count?: number | null
+          stake?: number | null
+          started_at?: string
+          target_digit?: number | null
+          total_trades?: number
+          user_id: string
+          wins?: number
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          ended_at?: string
+          id?: string
+          losses?: number
+          pnl?: number
+          repetition_count?: number | null
+          stake?: number | null
+          started_at?: string
+          target_digit?: number | null
+          total_trades?: number
+          user_id?: string
+          wins?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
