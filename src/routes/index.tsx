@@ -117,6 +117,13 @@ function Dashboard() {
 
   const activeToken = accountType === "real" ? realToken : demoToken;
 
+  // Keep the bot's config in sync with the currently-typed token so users
+  // don't have to click "Save" before "Connect".
+  useEffect(() => {
+    setCfg((c) => (c.token === activeToken ? c : { ...c, token: activeToken }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeToken]);
+
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
   // Load tokens + preferred account type from profile
