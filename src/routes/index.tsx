@@ -209,41 +209,8 @@ function Dashboard() {
   const statusLabel = !s?.connected ? "Disconnected" : s?.running ? "Running" : s?.authorized ? "Idle" : "Connecting…";
 
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Top bar */}
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 rounded-sm bg-primary/20 grid place-items-center">
-            <div className="h-2 w-2 rounded-sm bg-primary" />
-          </div>
-          <h1 className="font-display text-base font-semibold tracking-tight">
-            ThDpstSmrtTrdr<span className="text-muted-foreground"> · Digits Differ</span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <span className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`} style={{ backgroundColor: "currentColor" }} />
-            <span className={statusColor}>{statusLabel}</span>
-          </div>
-          <div className="text-muted-foreground font-mono">
-            {s?.currency} <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
-          </div>
-          <div className="hidden sm:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
-          <button
-            onClick={() => signOut()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="Log out"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Log out</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
-        {/* LEFT: Controls */}
-        <section className="bg-background p-5 space-y-5">
+  const ControlsPanel = (
+    <section className="bg-background p-4 sm:p-5 space-y-5">
           <SectionLabel>Connection</SectionLabel>
 
           {/* Account type toggle */}
@@ -390,15 +357,16 @@ function Dashboard() {
             </div>
           )}
         </section>
+  );
 
-        {/* CENTER: Live tick + digit */}
-        <section className="bg-background p-6 space-y-6">
+  const LivePanel = (
+    <section className="bg-background p-4 sm:p-6 space-y-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
             <Panel title="Last Digit" hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}>
-              <div className="flex items-end justify-between gap-6">
+              <div className="flex items-end justify-between gap-4">
                 <div
                   key={s?.lastDigit ?? "—"}
-                  className={`font-mono text-[112px] leading-none tracking-tight tick-pulse ${
+                  className={`font-mono text-[80px] sm:text-[112px] leading-none tracking-tight tick-pulse ${
                     s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
                   }`}
                 >
@@ -454,8 +422,8 @@ function Dashboard() {
 
           <Panel title="Trade Log" hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}>
             {s?.trades.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm min-w-[440px]">
                   <thead className="text-xs uppercase tracking-wider text-muted-foreground">
                     <tr className="text-left">
                       <th className="py-2 pr-4 font-medium">Time</th>
@@ -492,12 +460,11 @@ function Dashboard() {
               <EmptyState>Trades will appear here once the bot fires.</EmptyState>
             )}
           </Panel>
-
-          <SessionHistory userId={user.id} refreshKey={historyKey} />
         </section>
+  );
 
-        {/* RIGHT: Stats */}
-        <section className="bg-background p-5 space-y-5">
+  const StatsPanel = (
+    <section className="bg-background p-4 sm:p-5 space-y-5">
           <SectionLabel>Session</SectionLabel>
           <div className="space-y-1">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
@@ -529,6 +496,79 @@ function Dashboard() {
             Tokens stay in your browser only — never sent to any third-party server. Demo and Real tokens are stored separately on your account.
           </p>
         </section>
+  );
+
+  const HistoryPanel = (
+    <section className="bg-background p-4 sm:p-5">
+      <SessionHistory userId={user.id} refreshKey={historyKey} />
+    </section>
+  );
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top bar */}
+      <header className="flex items-center justify-between gap-2 border-b border-border px-3 sm:px-6 py-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="h-6 w-6 shrink-0 rounded-sm bg-primary/20 grid place-items-center">
+            <div className="h-2 w-2 rounded-sm bg-primary" />
+          </div>
+          <h1 className="font-display text-sm sm:text-base font-semibold tracking-tight truncate">
+            ThDpstSmrtTrdr<span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-4 text-xs">
+          <div className="hidden xs:flex items-center gap-2">
+            <span className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`} style={{ backgroundColor: "currentColor" }} />
+            <span className={statusColor}>{statusLabel}</span>
+          </div>
+          <div className="text-muted-foreground font-mono">
+            <span className="hidden sm:inline">{s?.currency} </span>
+            <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
+          </div>
+          <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          <button
+            onClick={toggleTheme}
+            className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={() => signOut()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 sm:px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Log out"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Log out</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile / tablet: tabbed layout */}
+      <div className="lg:hidden">
+        <Tabs defaultValue="live" className="w-full">
+          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 rounded-none border-b border-border bg-background h-11 p-1">
+            <TabsTrigger value="controls" className="text-xs gap-1.5"><Settings className="h-3.5 w-3.5" /><span className="hidden xs:inline">Controls</span></TabsTrigger>
+            <TabsTrigger value="live" className="text-xs gap-1.5"><Activity className="h-3.5 w-3.5" /><span className="hidden xs:inline">Live</span></TabsTrigger>
+            <TabsTrigger value="stats" className="text-xs gap-1.5"><BarChart3 className="h-3.5 w-3.5" /><span className="hidden xs:inline">Stats</span></TabsTrigger>
+            <TabsTrigger value="history" className="text-xs gap-1.5"><History className="h-3.5 w-3.5" /><span className="hidden xs:inline">History</span></TabsTrigger>
+          </TabsList>
+          <TabsContent value="controls" className="mt-0">{ControlsPanel}</TabsContent>
+          <TabsContent value="live" className="mt-0">{LivePanel}</TabsContent>
+          <TabsContent value="stats" className="mt-0">{StatsPanel}</TabsContent>
+          <TabsContent value="history" className="mt-0">{HistoryPanel}</TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Desktop: 3-column grid */}
+      <main className="hidden lg:grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
+        {ControlsPanel}
+        <div className="bg-background">
+          {LivePanel}
+          {HistoryPanel}
+        </div>
+        {StatsPanel}
       </main>
 
       <style>{`
