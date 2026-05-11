@@ -517,7 +517,7 @@ function Dashboard() {
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-xs">
-          <div className="hidden xs:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <span className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`} style={{ backgroundColor: "currentColor" }} />
             <span className={statusColor}>{statusLabel}</span>
           </div>
@@ -549,10 +549,10 @@ function Dashboard() {
       <div className="lg:hidden">
         <Tabs defaultValue="live" className="w-full">
           <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 rounded-none border-b border-border bg-background h-11 p-1">
-            <TabsTrigger value="controls" className="text-xs gap-1.5"><Settings className="h-3.5 w-3.5" /><span className="hidden xs:inline">Controls</span></TabsTrigger>
-            <TabsTrigger value="live" className="text-xs gap-1.5"><Activity className="h-3.5 w-3.5" /><span className="hidden xs:inline">Live</span></TabsTrigger>
-            <TabsTrigger value="stats" className="text-xs gap-1.5"><BarChart3 className="h-3.5 w-3.5" /><span className="hidden xs:inline">Stats</span></TabsTrigger>
-            <TabsTrigger value="history" className="text-xs gap-1.5"><History className="h-3.5 w-3.5" /><span className="hidden xs:inline">History</span></TabsTrigger>
+            <TabsTrigger value="controls" className="text-xs gap-1.5"><Settings className="h-3.5 w-3.5" /><span className="inline">Controls</span></TabsTrigger>
+            <TabsTrigger value="live" className="text-xs gap-1.5"><Activity className="h-3.5 w-3.5" /><span className="inline">Live</span></TabsTrigger>
+            <TabsTrigger value="stats" className="text-xs gap-1.5"><BarChart3 className="h-3.5 w-3.5" /><span className="inline">Stats</span></TabsTrigger>
+            <TabsTrigger value="history" className="text-xs gap-1.5"><History className="h-3.5 w-3.5" /><span className="inline">History</span></TabsTrigger>
           </TabsList>
           <TabsContent value="controls" className="mt-0">{ControlsPanel}</TabsContent>
           <TabsContent value="live" className="mt-0">{LivePanel}</TabsContent>
