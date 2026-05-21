@@ -41,6 +41,7 @@
 }
 
 :root {
+  color-scheme: light;
   --radius: 0.5rem;
   /* Light theme — soft neutrals, cool teal accent */
   --background: oklch(0.985 0.003 220);
