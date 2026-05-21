@@ -72,6 +72,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Tinted dark — neutrals pulled toward cool teal */
   --background: oklch(0.18 0.012 220);
   --foreground: oklch(0.95 0.008 200);
