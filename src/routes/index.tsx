@@ -127,6 +127,19 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeToken]);
 
+  // Auto-connect once tokens have loaded and a saved token exists.
+  const autoConnectedRef = useRef(false);
+  useEffect(() => {
+    if (!tokenLoaded) return;
+    if (autoConnectedRef.current) return;
+    if (!activeToken) return;
+    if (s?.connected || s?.authorized) return;
+    autoConnectedRef.current = true;
+    // Defer to allow cfg sync effect above to run first.
+    setTimeout(() => connect(), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenLoaded, activeToken]);
+
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
   // Load tokens + preferred account type from profile
