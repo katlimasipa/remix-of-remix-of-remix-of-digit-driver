@@ -15,7 +15,18 @@ export function useTheme() {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
     localStorage.setItem("theme", theme);
+
+    // Sync iOS / Android status-bar color with the active theme
+    const color = theme === "dark" ? "#0a0a0a" : "#ffffff";
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", color);
   }, [theme]);
 
   return { theme, setTheme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) };

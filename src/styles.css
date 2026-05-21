@@ -41,6 +41,7 @@
 }
 
 :root {
+  color-scheme: light;
   --radius: 0.5rem;
   /* Light theme — soft neutrals, cool teal accent */
   --background: oklch(0.985 0.003 220);
@@ -71,6 +72,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Tinted dark — neutrals pulled toward cool teal */
   --background: oklch(0.18 0.012 220);
   --foreground: oklch(0.95 0.008 200);
@@ -102,10 +104,17 @@
 @layer base {
   * { border-color: var(--color-border); }
   html, body { background-color: var(--color-background); color: var(--color-foreground); }
+  html { min-height: 100%; }
   body {
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   .font-mono { font-feature-settings: "zero", "ss01"; }
 }
