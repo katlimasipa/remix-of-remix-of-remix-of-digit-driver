@@ -602,6 +602,27 @@ function Dashboard() {
             <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
           </div>
           <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          {notifSupported && (
+            <button
+              onClick={requestNotifications}
+              disabled={notifPerm === "denied"}
+              className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                notifPerm === "granted"
+                  ? "Trade notifications enabled"
+                  : notifPerm === "denied"
+                  ? "Notifications blocked — enable them in your browser settings"
+                  : "Enable trade notifications"
+              }
+              aria-label="Toggle notifications"
+            >
+              {notifPerm === "granted" ? (
+                <Bell className="h-3.5 w-3.5 text-bull" />
+              ) : (
+                <BellOff className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
