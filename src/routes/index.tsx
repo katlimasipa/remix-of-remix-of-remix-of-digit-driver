@@ -425,8 +425,8 @@ function Dashboard() {
             </button>
             <button
               className="btn-secondary"
-              onClick={connect}
-              disabled={!activeToken || s?.connected}
+              onClick={connectWithSavedToken}
+              disabled={!activeToken || s?.connected || savingToken}
             >
               {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
             </button>
@@ -630,7 +630,7 @@ function Dashboard() {
           <Row k="Duration" v="1 tick" />
 
           <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Tokens stay in your browser only — never sent to any third-party server. Demo and Real tokens are stored separately on your account.
+            Demo and Real tokens are saved separately and are only loaded for your signed-in account.
           </p>
         </section>
   );
