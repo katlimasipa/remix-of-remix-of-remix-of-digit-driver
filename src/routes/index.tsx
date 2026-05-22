@@ -232,7 +232,7 @@ function Dashboard() {
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
-  // Load tokens + preferred account type from profile
+  // Load tokens + preferred account type from this signed-in user's profile.
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
@@ -244,11 +244,11 @@ function Dashboard() {
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("deriv_token_demo, deriv_token_real, account_type")
+        .select("email, deriv_token, deriv_token_demo, deriv_token_real, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const dt = data?.deriv_token_demo ?? "";
+      const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
       const rt = data?.deriv_token_real ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
       setDemoToken(dt);
@@ -256,6 +256,15 @@ function Dashboard() {
       setAccountType(at);
       setCfg((c) => ({ ...c, token: at === "real" ? rt : dt }));
       setTokenLoaded(true);
+
+      // Older accounts may not have a profile row yet; create one scoped to this user.
+      if (!data) {
+        await supabase.from("profiles").upsert({
+          id: user.id,
+          email: user.email ?? null,
+          account_type: at,
+        });
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -278,14 +287,25 @@ function Dashboard() {
     }
   }
 
+  async function persistActiveToken() {
+    if (!user) return;
+    const patch = accountType === "real"
+      ? { deriv_token_real: realToken }
+      : { deriv_token_demo: demoToken };
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email ?? null,
+      account_type: accountType,
+      ...patch,
+    });
+    if (error) throw error;
+  }
+
   async function saveToken() {
     if (!user) return;
     setSavingToken(true);
     setSavedMsg(null);
-    const patch = accountType === "real"
-      ? { deriv_token_real: realToken }
-      : { deriv_token_demo: demoToken };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
+    const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
     setSavingToken(false);
     if (error) setSavedMsg("Save failed");
     else {
@@ -293,6 +313,20 @@ function Dashboard() {
       setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
       setTimeout(() => setSavedMsg(null), 2000);
     }
+  }
+
+  async function connectWithSavedToken() {
+    if (!activeToken) return;
+    setSavingToken(true);
+    setSavedMsg(null);
+    const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
+    setSavingToken(false);
+    if (error) {
+      setSavedMsg("Save failed");
+      return;
+    }
+    setCfg({ ...cfg, token: activeToken });
+    connect();
   }
 
   if (loading) {
@@ -391,8 +425,8 @@ function Dashboard() {
             </button>
             <button
               className="btn-secondary"
-              onClick={connect}
-              disabled={!activeToken || s?.connected}
+              onClick={connectWithSavedToken}
+              disabled={!activeToken || s?.connected || savingToken}
             >
               {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
             </button>
@@ -596,7 +630,7 @@ function Dashboard() {
           <Row k="Duration" v="1 tick" />
 
           <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Tokens stay in your browser only — never sent to any third-party server. Demo and Real tokens are stored separately on your account.
+            Demo and Real tokens are saved separately and are only loaded for your signed-in account.
           </p>
         </section>
   );
