@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History } from "lucide-react";
+import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History, Bell, BellOff } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
