@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History } from "lucide-react";
+import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History, Bell, BellOff } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -139,6 +139,69 @@ function Dashboard() {
     setTimeout(() => connect(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenLoaded, activeToken]);
+
+  // ---------- Trade notifications (Web Notifications API) ----------
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied"
+  );
+  const notifSupported = typeof window !== "undefined" && "Notification" in window;
+  const seenTradesRef = useRef<Set<string>>(new Set());
+  // Seed seen set with any open trades that already exist so we don't spam on mount
+  useEffect(() => {
+    if (!s?.trades) return;
+    for (const t of s.trades) {
+      if (t.status !== "open" && !seenTradesRef.current.has(t.id)) {
+        // already settled before we started watching — mark as seen, no notify
+        seenTradesRef.current.add(t.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!notifSupported || notifPerm !== "granted") return;
+    if (!s?.trades) return;
+    for (const t of s.trades) {
+      if (t.status === "open") continue;
+      if (seenTradesRef.current.has(t.id)) continue;
+      seenTradesRef.current.add(t.id);
+      const won = t.status === "won";
+      const profit = typeof t.profit === "number" ? t.profit : 0;
+      const title = won ? "✅ Trade won" : "❌ Trade lost";
+      const body = `${won ? "+" : ""}${profit.toFixed(2)} ${s.currency} · Digit ${t.digit} · Session P/L ${s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(2)}`;
+      try {
+        const n = new Notification(title, {
+          body,
+          icon: "/app-icon.png",
+          badge: "/app-icon.png",
+          tag: `trade-${t.id}`,
+          silent: false,
+        });
+        // Auto-close after 6s on desktop; mobile ignores this
+        setTimeout(() => n.close(), 6000);
+        // Vibrate on mobile (separate from Notification API)
+        if ("vibrate" in navigator) navigator.vibrate(won ? [80, 40, 80] : [200]);
+      } catch {
+        // ignore
+      }
+    }
+  }, [s?.trades, notifPerm, notifSupported, s?.currency, s?.pnl]);
+
+  async function requestNotifications() {
+    if (!notifSupported) return;
+    try {
+      const p = await Notification.requestPermission();
+      setNotifPerm(p);
+      if (p === "granted") {
+        new Notification("Notifications enabled", {
+          body: "You'll get an alert each time a trade is won or lost.",
+          icon: "/app-icon.png",
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
@@ -539,6 +602,27 @@ function Dashboard() {
             <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
           </div>
           <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          {notifSupported && (
+            <button
+              onClick={requestNotifications}
+              disabled={notifPerm === "denied"}
+              className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                notifPerm === "granted"
+                  ? "Trade notifications enabled"
+                  : notifPerm === "denied"
+                  ? "Notifications blocked — enable them in your browser settings"
+                  : "Enable trade notifications"
+              }
+              aria-label="Toggle notifications"
+            >
+              {notifPerm === "granted" ? (
+                <Bell className="h-3.5 w-3.5 text-bull" />
+              ) : (
+                <BellOff className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
