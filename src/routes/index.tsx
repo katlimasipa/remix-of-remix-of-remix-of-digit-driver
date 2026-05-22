@@ -203,6 +203,33 @@ function Dashboard() {
     }
   }
 
+  // Notify on Stop Loss / Take Profit trigger (bot sets state.error with these labels)
+  const lastRiskErrRef = useRef<string | null>(null);
+  useEffect(() => {
+    const err = s?.error ?? null;
+    if (!err || err === lastRiskErrRef.current) return;
+    const isSL = err.startsWith("Stop Loss hit");
+    const isTP = err.startsWith("Take Profit reached");
+    if (!isSL && !isTP) return;
+    lastRiskErrRef.current = err;
+    if (!notifSupported || notifPerm !== "granted") return;
+    try {
+      const title = isTP ? "🎯 Take Profit reached" : "🛑 Stop Loss hit";
+      const body = `${err} · Session ended · ${s?.wins ?? 0}W / ${s?.losses ?? 0}L`;
+      const n = new Notification(title, {
+        body,
+        icon: "/app-icon.png",
+        badge: "/app-icon.png",
+        tag: `risk-${Date.now()}`,
+        requireInteraction: true,
+      });
+      setTimeout(() => n.close(), 15000);
+      if ("vibrate" in navigator) navigator.vibrate(isTP ? [80, 40, 80, 40, 200] : [300, 100, 300]);
+    } catch {
+      // ignore
+    }
+  }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
+
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
   // Load tokens + preferred account type from profile
