@@ -1,6 +1,5 @@
-// Basic offline-capable service worker.
-// Strategy: network-first for navigations, cache-first for static assets.
-const CACHE = "smrttrdr-v1";
+// Basic offline-capable service worker + Web Push support.
+const CACHE = "smrttrdr-v2";
 const CORE = ["/", "/app-icon.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -25,7 +24,6 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Network-first for HTML navigations so users get fresh app shell when online.
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -39,7 +37,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-first for static assets.
   event.respondWith(
     caches.match(req).then(
       (cached) =>
@@ -54,5 +51,47 @@ self.addEventListener("fetch", (event) => {
           })
           .catch(() => cached)
     )
+  );
+});
+
+// ---------- Web Push ----------
+self.addEventListener("push", (event) => {
+  let payload = { title: "SmrtTrdr", body: "Update from your bot" };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    if (event.data) payload.body = event.data.text();
+  }
+  const { title, body, tag, url, requireInteraction, vibrate } = payload;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      tag: tag || "smrttrdr",
+      icon: "/app-icon.png",
+      badge: "/app-icon.png",
+      requireInteraction: !!requireInteraction,
+      vibrate: vibrate || [80, 40, 80],
+      data: { url: url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of all) {
+        if ("focus" in c) {
+          try {
+            await c.focus();
+            if ("navigate" in c) await c.navigate(target);
+            return;
+          } catch {}
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(target);
+    })()
   );
 });

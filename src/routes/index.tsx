@@ -140,7 +140,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenLoaded, activeToken]);
 
-  // ---------- Trade notifications (Web Notifications API) ----------
+  // ---------- Trade notifications (Web Push -> all of this user's devices) ----------
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied"
   );
@@ -151,12 +151,71 @@ function Dashboard() {
     if (!s?.trades) return;
     for (const t of s.trades) {
       if (t.status !== "open" && !seenTradesRef.current.has(t.id)) {
-        // already settled before we started watching — mark as seen, no notify
         seenTradesRef.current.add(t.id);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function urlBase64ToUint8Array(base64: string) {
+    const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+    const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  async function ensurePushSubscription() {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    try {
+      const reg =
+        (await navigator.serviceWorker.getRegistration()) ||
+        (await navigator.serviceWorker.register("/sw.js"));
+      await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const { data: vapid, error: vErr } = await supabase.functions.invoke("push", {
+          body: { action: "vapid" },
+        });
+        if (vErr || !vapid?.publicKey) throw vErr ?? new Error("No VAPID key");
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
+        });
+      }
+      const json = sub.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
+      await supabase.functions.invoke("push", {
+        body: {
+          action: "subscribe",
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+          userAgent: navigator.userAgent.slice(0, 500),
+        },
+      });
+    } catch (e) {
+      console.warn("Push subscription failed", e);
+    }
+  }
+
+  async function sendPushSafe(payload: {
+    title: string;
+    body: string;
+    tag?: string;
+    requireInteraction?: boolean;
+    vibrate?: number[];
+  }) {
+    try {
+      await supabase.functions.invoke("push", {
+        body: { action: "send", ...payload },
+      });
+    } catch (e) {
+      console.warn("Push send failed", e);
+    }
+  }
+
 
   useEffect(() => {
     if (!notifSupported || notifPerm !== "granted") return;
@@ -169,21 +228,12 @@ function Dashboard() {
       const profit = typeof t.profit === "number" ? t.profit : 0;
       const title = won ? "✅ Trade won" : "❌ Trade lost";
       const body = `${won ? "+" : ""}${profit.toFixed(2)} ${s.currency} · Digit ${t.digit} · Session P/L ${s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(2)}`;
-      try {
-        const n = new Notification(title, {
-          body,
-          icon: "/app-icon.png",
-          badge: "/app-icon.png",
-          tag: `trade-${t.id}`,
-          silent: false,
-        });
-        // Auto-close after 6s on desktop; mobile ignores this
-        setTimeout(() => n.close(), 6000);
-        // Vibrate on mobile (separate from Notification API)
-        if ("vibrate" in navigator) navigator.vibrate(won ? [80, 40, 80] : [200]);
-      } catch {
-        // ignore
-      }
+      void sendPushSafe({
+        title,
+        body,
+        tag: `trade-${t.id}`,
+        vibrate: won ? [80, 40, 80] : [200],
+      });
     }
   }, [s?.trades, notifPerm, notifSupported, s?.currency, s?.pnl]);
 
@@ -193,15 +243,23 @@ function Dashboard() {
       const p = await Notification.requestPermission();
       setNotifPerm(p);
       if (p === "granted") {
-        new Notification("Notifications enabled", {
-          body: "You'll get an alert each time a trade is won or lost.",
-          icon: "/app-icon.png",
+        await ensurePushSubscription();
+        void sendPushSafe({
+          title: "Notifications enabled",
+          body: "You'll get alerts on every signed-in device.",
+          tag: "enabled",
         });
       }
     } catch {
       // ignore
     }
   }
+
+  // Re-attach subscription on load if permission is already granted (covers new devices)
+  useEffect(() => {
+    if (notifPerm === "granted") void ensurePushSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifPerm]);
 
   // Notify on Stop Loss / Take Profit trigger (bot sets state.error with these labels)
   const lastRiskErrRef = useRef<string | null>(null);
@@ -213,21 +271,15 @@ function Dashboard() {
     if (!isSL && !isTP) return;
     lastRiskErrRef.current = err;
     if (!notifSupported || notifPerm !== "granted") return;
-    try {
-      const title = isTP ? "🎯 Take Profit reached" : "🛑 Stop Loss hit";
-      const body = `${err} · Session ended · ${s?.wins ?? 0}W / ${s?.losses ?? 0}L`;
-      const n = new Notification(title, {
-        body,
-        icon: "/app-icon.png",
-        badge: "/app-icon.png",
-        tag: `risk-${Date.now()}`,
-        requireInteraction: true,
-      });
-      setTimeout(() => n.close(), 15000);
-      if ("vibrate" in navigator) navigator.vibrate(isTP ? [80, 40, 80, 40, 200] : [300, 100, 300]);
-    } catch {
-      // ignore
-    }
+    const title = isTP ? "🎯 Take Profit reached" : "🛑 Stop Loss hit";
+    const body = `${err} · Session ended · ${s?.wins ?? 0}W / ${s?.losses ?? 0}L`;
+    void sendPushSafe({
+      title,
+      body,
+      tag: `risk-${Date.now()}`,
+      requireInteraction: true,
+      vibrate: isTP ? [80, 40, 80, 40, 200] : [300, 100, 300],
+    });
   }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
