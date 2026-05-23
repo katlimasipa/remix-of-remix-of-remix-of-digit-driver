@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +9,11 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getVapidPublicKey,
+  subscribePush,
+  sendPushToMyDevices,
+} from "@/lib/push.functions";
 import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History, Bell, BellOff } from "lucide-react";
 
 export const Route = createFileRoute("/")({
