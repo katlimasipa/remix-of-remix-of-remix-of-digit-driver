@@ -145,9 +145,6 @@ function Dashboard() {
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied"
   );
   const notifSupported = typeof window !== "undefined" && "Notification" in window;
-  const pushSendRef = useRef(useServerFn(sendPushToMyDevices));
-  const pushSubscribeRef = useRef(useServerFn(subscribePush));
-  const vapidGetRef = useRef(useServerFn(getVapidPublicKey));
   const seenTradesRef = useRef<Set<string>>(new Set());
   // Seed seen set with any open trades that already exist so we don't spam on mount
   useEffect(() => {
@@ -178,16 +175,20 @@ function Dashboard() {
       await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
-        const { key } = await vapidGetRef.current({});
+        const { data: vapid, error: vErr } = await supabase.functions.invoke("push", {
+          body: { action: "vapid" },
+        });
+        if (vErr || !vapid?.publicKey) throw vErr ?? new Error("No VAPID key");
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(key),
+          applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
         });
       }
       const json = sub.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
-      await pushSubscribeRef.current({
-        data: {
+      await supabase.functions.invoke("push", {
+        body: {
+          action: "subscribe",
           endpoint: json.endpoint,
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,
@@ -207,11 +208,14 @@ function Dashboard() {
     vibrate?: number[];
   }) {
     try {
-      await pushSendRef.current({ data: payload });
+      await supabase.functions.invoke("push", {
+        body: { action: "send", ...payload },
+      });
     } catch (e) {
       console.warn("Push send failed", e);
     }
   }
+
 
   useEffect(() => {
     if (!notifSupported || notifPerm !== "granted") return;
