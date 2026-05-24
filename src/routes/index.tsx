@@ -677,6 +677,7 @@ function Dashboard() {
           <SectionLabel>Bot</SectionLabel>
           <Row k="Status" v={statusLabel} />
           <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
+          <Row k="Reps waited" v={`${cfg.repetitionCount}`} />
           <Row k="Streak" v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`} />
           <Row k="Symbol" v="R_100" />
           <Row k="Duration" v="1 tick" />
