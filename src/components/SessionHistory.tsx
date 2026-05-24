@@ -85,6 +85,7 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
                 <th className="py-2 pr-3 font-medium">Trades</th>
                 <th className="py-2 pr-3 font-medium">W/L</th>
                 <th className="py-2 pr-3 font-medium">Win%</th>
+                <th className="py-2 pr-3 font-medium">Reps</th>
                 <th className="py-2 pr-3 font-medium text-right">P/L</th>
                 <th className="py-2 pr-0 font-medium" />
               </tr>
@@ -110,6 +111,7 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
                       <span className="text-bear">{r.losses}</span>
                     </td>
                     <td className="py-2 pr-3">{wr}%</td>
+                    <td className="py-2 pr-3">{r.repetition_count ?? 0}</td>
                     <td className={`py-2 pr-3 text-right ${pnl >= 0 ? "text-bull" : "text-bear"}`}>
                       {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
                     </td>
