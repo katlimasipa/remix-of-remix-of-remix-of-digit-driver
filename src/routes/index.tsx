@@ -536,8 +536,8 @@ function Dashboard() {
           value={accountType === "real" ? realToken : demoToken}
           onChange={(e) => {
             const v = e.target.value;
-            if (accountType === "real") setRealToken(v);
-            else setDemoToken(v);
+            if (accountType === "real") setRealToken(v.replace(/[^a-zA-Z0-9]/g, ""));
+            else setDemoToken(v.replace(/[^a-zA-Z0-9]/g, ""));
           }}
           placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
           className="input"

@@ -111,7 +111,7 @@ export class DerivBot {
     this.ws = ws;
     ws.onopen = () => {
       this.patch({ connected: true });
-      this.send({ authorize: this.cfg.token });
+      this.send({ authorize: this.cfg.token.trim() });
     };
     ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
     ws.onclose = () => {
