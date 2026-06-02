@@ -6,16 +6,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 const VAPID_PUBLIC_KEY =
   "BA5_emacth6TtdY5059cT8eBoGtVhUY1YiyA_3FsXq7F68TdJVfHcL-tJgE0S-LSHjEXNulDvgdsNwL50Zmk6aM";
 const VAPID_PRIVATE_KEY = "oFiys_YUOuT_orQ3ZVDfEGRmCBrMBQocoNfk_7f2pFw";
-webpush.setVapidDetails(
-  "mailto:notifications@smrttrdr.app",
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY,
-);
+webpush.setVapidDetails("mailto:notifications@smrttrdr.app", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -62,21 +57,19 @@ Deno.serve(async (req) => {
     const auth = String(body.auth ?? "");
     const userAgent = body.userAgent ? String(body.userAgent).slice(0, 500) : null;
     if (!endpoint || !p256dh || !auth) return json({ error: "Missing fields" }, 400);
-    const { error } = await admin.from("push_subscriptions").upsert(
-      { user_id: userId, endpoint, p256dh, auth, user_agent: userAgent },
-      { onConflict: "endpoint" },
-    );
+    const { error } = await admin
+      .from("push_subscriptions")
+      .upsert(
+        { user_id: userId, endpoint, p256dh, auth, user_agent: userAgent },
+        { onConflict: "endpoint" },
+      );
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true });
   }
 
   if (action === "unsubscribe") {
     const endpoint = String(body.endpoint ?? "");
-    await admin
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", userId)
-      .eq("endpoint", endpoint);
+    await admin.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", endpoint);
     return json({ ok: true });
   }
 

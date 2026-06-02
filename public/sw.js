@@ -4,7 +4,10 @@ const CORE = ["/", "/app-icon.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(CORE))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -14,7 +17,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
       await self.clients.claim();
-    })()
+    })(),
   );
 });
 
@@ -32,7 +35,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
           return res;
         })
-        .catch(async () => (await caches.match(req)) || (await caches.match("/")))
+        .catch(async () => (await caches.match(req)) || (await caches.match("/"))),
     );
     return;
   }
@@ -49,8 +52,8 @@ self.addEventListener("fetch", (event) => {
             }
             return res;
           })
-          .catch(() => cached)
-    )
+          .catch(() => cached),
+    ),
   );
 });
 
@@ -72,7 +75,7 @@ self.addEventListener("push", (event) => {
       requireInteraction: !!requireInteraction,
       vibrate: vibrate || [80, 40, 80],
       data: { url: url || "/" },
-    })
+    }),
   );
 });
 
@@ -92,6 +95,6 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
       if (self.clients.openWindow) await self.clients.openWindow(target);
-    })()
+    })(),
   );
 });

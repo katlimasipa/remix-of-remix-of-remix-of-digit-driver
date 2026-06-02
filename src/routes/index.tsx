@@ -8,13 +8,28 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Save, Archive, Sun, Moon, Settings, Activity, BarChart3, History, Bell, BellOff } from "lucide-react";
+import {
+  LogOut,
+  Save,
+  Archive,
+  Sun,
+  Moon,
+  Settings,
+  Activity,
+  BarChart3,
+  History,
+  Bell,
+  BellOff,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "ThDpstSmrtTrdr — Digits Differ Bot" },
-      { name: "description", content: "Automated Digits Differ trading on Volatility 100 via Deriv API." },
+      {
+        name: "description",
+        content: "Automated Digits Differ trading on Volatility 100 via Deriv API.",
+      },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -143,7 +158,7 @@ function Dashboard() {
 
   // ---------- Trade notifications (Web Push -> all of this user's devices) ----------
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
-    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied"
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied",
   );
   const notifSupported = typeof window !== "undefined" && "Notification" in window;
   const seenTradesRef = useRef<Set<string>>(new Set());
@@ -217,7 +232,6 @@ function Dashboard() {
     }
   }
 
-
   useEffect(() => {
     if (!notifSupported || notifPerm !== "granted") return;
     if (!s?.trades) return;
@@ -283,9 +297,7 @@ function Dashboard() {
     });
   }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
 
-  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
-
-  // Load tokens + preferred account type from this signed-in user's profile.
+  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]); // Load tokens + preferred account type from this signed-in user's profile.
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
@@ -294,10 +306,42 @@ function Dashboard() {
       setRealToken("");
       return;
     }
+
+    // Check for Deriv OAuth tokens in the URL
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get("token1");
+    const oauthAcct = params.get("acct1");
+
     let cancelled = false;
     (async () => {
       setTokenLoaded(false);
       setTokenLoadError(null);
+
+      // If we got an OAuth token, save it to the profile first
+      if (oauthToken && oauthAcct) {
+        const isReal = !oauthAcct.startsWith("VRTC");
+        if (isReal) {
+          setRealToken(oauthToken);
+          setAccountType("real");
+        } else {
+          setDemoToken(oauthToken);
+          setAccountType("demo");
+        }
+
+        const patch = isReal
+          ? { deriv_token_real: oauthToken, account_type: "real" }
+          : { deriv_token_demo: oauthToken, account_type: "demo" };
+
+        await supabase.from("profiles").upsert({
+          id: user.id,
+          email: user.email ?? null,
+          ...patch,
+        });
+
+        // Clean up the URL so the token doesn't stay in the browser history
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       const { data, error } = await supabase
         .from("profiles")
         .select("email, deriv_token, deriv_token_demo, deriv_token_real, account_type")
@@ -330,11 +374,15 @@ function Dashboard() {
         });
         if (createError && !cancelled) {
           console.error("Profile creation failed:", createError);
-          setTokenLoadError("Your profile was created late, but token saving is not ready yet. Refresh and try again.");
+          setTokenLoadError(
+            "Your profile was created late, but token saving is not ready yet. Refresh and try again.",
+          );
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -358,9 +406,8 @@ function Dashboard() {
   async function persistActiveToken() {
     if (!user) return;
     const token = accountType === "real" ? realToken.trim() : demoToken.trim();
-    const patch = accountType === "real"
-      ? { deriv_token_real: token }
-      : { deriv_token_demo: token };
+    const patch =
+      accountType === "real" ? { deriv_token_real: token } : { deriv_token_demo: token };
     const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email ?? null,
@@ -374,13 +421,14 @@ function Dashboard() {
     if (!user) return;
     setSavingToken(true);
     setSavedMsg(null);
-    const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
+    const error = await persistActiveToken()
+      .then(() => null)
+      .catch((e) => e as Error);
     setSavingToken(false);
     if (error) {
       console.error("Token save failed:", error);
       setSavedMsg("Save failed — refresh and try again");
-    }
-    else {
+    } else {
       setCfg({ ...cfg, token: activeToken });
       setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
       setTimeout(() => setSavedMsg(null), 2000);
@@ -391,7 +439,9 @@ function Dashboard() {
     if (!activeToken) return;
     setSavingToken(true);
     setSavedMsg(null);
-    const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
+    const error = await persistActiveToken()
+      .then(() => null)
+      .catch((e) => e as Error);
     setSavingToken(false);
     if (error) {
       console.error("Token save before connect failed:", error);
@@ -414,309 +464,373 @@ function Dashboard() {
   const statusColor = !s?.connected
     ? "text-muted-foreground"
     : s?.running
-    ? "text-bull"
-    : "text-warn";
-  const statusLabel = !s?.connected ? "Disconnected" : s?.running ? "Running" : s?.authorized ? "Idle" : "Connecting…";
-
+      ? "text-bull"
+      : "text-warn";
+  const statusLabel = !s?.connected
+    ? "Disconnected"
+    : s?.running
+      ? "Running"
+      : s?.authorized
+        ? "Idle"
+        : "Connecting…";
 
   const ControlsPanel = (
     <section className="bg-background p-4 sm:p-5 space-y-5">
-          <SectionLabel>Connection</SectionLabel>
+      <SectionLabel>Connection</SectionLabel>
 
-          {/* Account type toggle */}
-          <div className="space-y-2">
-            <span className="text-[11px] text-muted-foreground">Account</span>
-            <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
-              {(["demo", "real"] as const).map((m) => {
-                const active = accountType === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => switchAccount(m)}
-                    className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
-                      active
-                        ? m === "real"
-                          ? "bg-bear text-white"
-                          : "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {m === "demo" ? "Demo" : "Real"}
-                  </button>
-                );
-              })}
-            </div>
-            {accountType === "real" && !s?.authorized && (
-              <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-                Live trading uses real funds. Trade at your own risk.
-              </div>
-            )}
-            {confirmReal && accountType === "demo" && (
-              <div className="space-y-1.5 rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">
-                <div>Switching to <b>Real</b> will trade with real money. Confirm?</div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => switchAccount("real")}
-                    className="rounded bg-bear px-2 py-1 text-[11px] text-white"
-                  >
-                    Confirm Real
-                  </button>
-                  <button
-                    onClick={() => setConfirmReal(false)}
-                    className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
-            <input
-              type="password"
-              value={accountType === "real" ? realToken : demoToken}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (accountType === "real") setRealToken(v);
-                else setDemoToken(v);
-              }}
-              placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
-              className="input"
-              autoComplete="off"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              className="btn-secondary inline-flex items-center justify-center gap-1.5"
-              onClick={saveToken}
-              disabled={savingToken || !activeToken}
-            >
-              <Save className="h-3.5 w-3.5" />
-              {savingToken ? "Saving…" : "Save"}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={connectWithSavedToken}
-              disabled={!activeToken || s?.connected || savingToken}
-            >
-              {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect"}
-            </button>
-          </div>
-          {savedMsg && (
-            <div className="text-[11px] text-muted-foreground">{savedMsg}</div>
-          )}
-          {tokenLoaded && !tokenLoadError && !activeToken && (
-            <div className="text-[11px] text-muted-foreground">
-              No saved {accountType} token found yet.
-            </div>
-          )}
-          {tokenLoadError && (
-            <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-              {tokenLoadError}
-            </div>
-          )}
-
-          <Divider />
-          <SectionLabel>Strategy</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Target Digit">
-              <select
-                className="input"
-                value={cfg.targetDigit}
-                onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+      {/* Account type toggle */}
+      <div className="space-y-2">
+        <span className="text-[11px] text-muted-foreground">Account</span>
+        <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
+          {(["demo", "real"] as const).map((m) => {
+            const active = accountType === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchAccount(m)}
+                className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
+                  active
+                    ? m === "real"
+                      ? "bg-bear text-white"
+                      : "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Repetitions">
-              <NumInput value={cfg.repetitionCount} min={1} step={1} onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })} />
-            </Field>
-            <Field label="Stake (USD)">
-              <NumInput value={cfg.stake} min={0.35} step={0.5} onChange={(v) => setCfg({ ...cfg, stake: v })} />
-            </Field>
-            <Field label="App ID">
-              <input className="input" value={cfg.appId} onChange={(e) => setCfg({ ...cfg, appId: e.target.value })} />
-            </Field>
+                {m === "demo" ? "Demo" : "Real"}
+              </button>
+            );
+          })}
+        </div>
+        {accountType === "real" && !s?.authorized && (
+          <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+            Live trading uses real funds. Trade at your own risk.
           </div>
-
-          <Divider />
-          <SectionLabel>Risk</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Stop Loss ($)">
-              <NumInput value={cfg.stopLoss} min={0} step={1} onChange={(v) => setCfg({ ...cfg, stopLoss: v })} />
-            </Field>
-            <Field label="Take Profit ($)">
-              <NumInput value={cfg.takeProfit} min={0} step={1} onChange={(v) => setCfg({ ...cfg, takeProfit: v })} />
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            {!s?.running ? (
-              <button className="btn-primary col-span-1" onClick={start} disabled={!s?.authorized}>Start Bot</button>
-            ) : (
-              <button className="btn-danger col-span-1" onClick={stop}>Stop Bot</button>
-            )}
-            <button className="btn-ghost" onClick={reset}>Reset</button>
-          </div>
-          <button
-            className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
-            onClick={endAndSaveSession}
-            disabled={savingSession || !s || s.totalTrades === 0}
-          >
-            <Archive className="h-3.5 w-3.5" />
-            {savingSession ? "Saving…" : "End & Save Session"}
-          </button>
-
-          {s?.error && (
-            <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
-              {s.error}
+        )}
+        {confirmReal && accountType === "demo" && (
+          <div className="space-y-1.5 rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">
+            <div>
+              Switching to <b>Real</b> will trade with real money. Confirm?
             </div>
-          )}
-        </section>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => switchAccount("real")}
+                className="rounded bg-bear px-2 py-1 text-[11px] text-white"
+              >
+                Confirm Real
+              </button>
+              <button
+                onClick={() => setConfirmReal(false)}
+                className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
+        <input
+          type="password"
+          value={accountType === "real" ? realToken : demoToken}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (accountType === "real") setRealToken(v);
+            else setDemoToken(v);
+          }}
+          placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
+          className="input"
+          autoComplete="off"
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          className="btn-secondary inline-flex items-center justify-center gap-1.5"
+          onClick={saveToken}
+          disabled={savingToken || !activeToken}
+          title="Save manual token"
+        >
+          <Save className="h-3.5 w-3.5" />
+        </button>
+        <button
+          className="btn-primary"
+          onClick={() => {
+            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
+          }}
+        >
+          Deriv OAuth
+        </button>
+        <button
+          className="btn-secondary col-span-2"
+          onClick={connectWithSavedToken}
+          disabled={!activeToken || s?.connected || savingToken}
+        >
+          {s?.authorized ? "Connected" : s?.connected ? "Authorizing..." : "Connect"}
+        </button>
+      </div>
+      {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
+      {tokenLoaded && !tokenLoadError && !activeToken && (
+        <div className="text-[11px] text-muted-foreground">
+          No saved {accountType} token found yet.
+        </div>
+      )}
+      {tokenLoadError && (
+        <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+          {tokenLoadError}
+        </div>
+      )}
+
+      <Divider />
+      <SectionLabel>Strategy</SectionLabel>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Target Digit">
+          <select
+            className="input"
+            value={cfg.targetDigit}
+            onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+          >
+            {Array.from({ length: 10 }).map((_, i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Repetitions">
+          <NumInput
+            value={cfg.repetitionCount}
+            min={1}
+            step={1}
+            onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
+          />
+        </Field>
+        <Field label="Stake (USD)">
+          <NumInput
+            value={cfg.stake}
+            min={0.35}
+            step={0.5}
+            onChange={(v) => setCfg({ ...cfg, stake: v })}
+          />
+        </Field>
+        <Field label="App ID">
+          <input
+            className="input"
+            value={cfg.appId}
+            onChange={(e) => setCfg({ ...cfg, appId: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <Divider />
+      <SectionLabel>Risk</SectionLabel>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Stop Loss ($)">
+          <NumInput
+            value={cfg.stopLoss}
+            min={0}
+            step={1}
+            onChange={(v) => setCfg({ ...cfg, stopLoss: v })}
+          />
+        </Field>
+        <Field label="Take Profit ($)">
+          <NumInput
+            value={cfg.takeProfit}
+            min={0}
+            step={1}
+            onChange={(v) => setCfg({ ...cfg, takeProfit: v })}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        {!s?.running ? (
+          <button className="btn-primary col-span-1" onClick={start} disabled={!s?.authorized}>
+            Start Bot
+          </button>
+        ) : (
+          <button className="btn-danger col-span-1" onClick={stop}>
+            Stop Bot
+          </button>
+        )}
+        <button className="btn-ghost" onClick={reset}>
+          Reset
+        </button>
+      </div>
+      <button
+        className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
+        onClick={endAndSaveSession}
+        disabled={savingSession || !s || s.totalTrades === 0}
+      >
+        <Archive className="h-3.5 w-3.5" />
+        {savingSession ? "Saving…" : "End & Save Session"}
+      </button>
+
+      {s?.error && (
+        <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
+          {s.error}
+        </div>
+      )}
+    </section>
   );
 
   const LivePanel = (
     <section className="bg-background p-4 sm:p-6 space-y-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-            <Panel title="Last Digit" hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}>
-              <div className="flex items-end justify-between gap-4">
-                <div
-                  key={s?.lastDigit ?? "—"}
-                  className={`font-mono text-[80px] sm:text-[112px] leading-none tracking-tight tick-pulse ${
-                    s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
-                  }`}
-                >
-                  {s?.lastDigit ?? "—"}
-                </div>
-                <div className="text-right space-y-1">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Price</div>
-                  <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
-                  <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Streak</div>
-                  <div className="font-mono text-xl">
-                    <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
-                    <span className="text-muted-foreground"> / {cfg.repetitionCount}</span>
-                  </div>
-                </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <Panel
+          title="Last Digit"
+          hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}
+        >
+          <div className="flex items-end justify-between gap-4">
+            <div
+              key={s?.lastDigit ?? "—"}
+              className={`font-mono text-[80px] sm:text-[112px] leading-none tracking-tight tick-pulse ${
+                s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
+              }`}
+            >
+              {s?.lastDigit ?? "—"}
+            </div>
+            <div className="text-right space-y-1">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Price</div>
+              <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
+              <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
+                Streak
               </div>
-              <div className="mt-5 flex flex-wrap gap-1.5">
-                {digits.map((d, i) => (
-                  <span
-                    key={i}
-                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                      d === cfg.targetDigit ? "bg-primary/15 text-primary" : "bg-surface text-muted-foreground"
-                    }`}
-                  >
-                    {d}
-                  </span>
-                ))}
-                {digits.length === 0 && (
-                  <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
-                )}
+              <div className="font-mono text-xl">
+                <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
+                <span className="text-muted-foreground"> / {cfg.repetitionCount}</span>
               </div>
-            </Panel>
-
-            <Panel title="Tick Stream">
-              <div className="h-[260px] overflow-hidden font-mono text-xs">
-                {s?.ticks.length ? (
-                  <ul className="space-y-1">
-                    {s.ticks.slice(0, 14).map((t, i) => (
-                      <li key={t.time + "-" + i} className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                        </span>
-                        <span>{t.price.toFixed(2)}</span>
-                        <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>·{t.digit}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
-                )}
-              </div>
-            </Panel>
+            </div>
           </div>
-
-          <Panel title="Trade Log" hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}>
-            {s?.trades.length ? (
-              <div className="overflow-x-auto -mx-1">
-                <table className="w-full text-sm min-w-[440px]">
-                  <thead className="text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr className="text-left">
-                      <th className="py-2 pr-4 font-medium">Time</th>
-                      <th className="py-2 pr-4 font-medium">Differ ≠</th>
-                      <th className="py-2 pr-4 font-medium">Stake</th>
-                      <th className="py-2 pr-4 font-medium">Result</th>
-                      <th className="py-2 pr-0 font-medium text-right">P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-mono">
-                    {s.trades.map((t) => (
-                      <tr key={t.id} className="border-t border-border">
-                        <td className="py-2 pr-4 text-muted-foreground">{new Date(t.time).toLocaleTimeString([], { hour12: false })}</td>
-                        <td className="py-2 pr-4">{t.digit}</td>
-                        <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
-                        <td className="py-2 pr-4">
-                          {t.status === "open" ? (
-                            <span className="text-warn">open</span>
-                          ) : t.status === "won" ? (
-                            <span className="text-bull">win</span>
-                          ) : (
-                            <span className="text-bear">loss</span>
-                          )}
-                        </td>
-                        <td className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}>
-                          {t.profit == null ? "—" : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <EmptyState>Trades will appear here once the bot fires.</EmptyState>
+          <div className="mt-5 flex flex-wrap gap-1.5">
+            {digits.map((d, i) => (
+              <span
+                key={i}
+                className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
+                  d === cfg.targetDigit
+                    ? "bg-primary/15 text-primary"
+                    : "bg-surface text-muted-foreground"
+                }`}
+              >
+                {d}
+              </span>
+            ))}
+            {digits.length === 0 && (
+              <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
             )}
-          </Panel>
-        </section>
+          </div>
+        </Panel>
+
+        <Panel title="Tick Stream">
+          <div className="h-[260px] overflow-hidden font-mono text-xs">
+            {s?.ticks.length ? (
+              <ul className="space-y-1">
+                {s.ticks.slice(0, 14).map((t, i) => (
+                  <li key={t.time + "-" + i} className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                    </span>
+                    <span>{t.price.toFixed(2)}</span>
+                    <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
+                      ·{t.digit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
+            )}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Trade Log"
+        hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}
+      >
+        {s?.trades.length ? (
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm min-w-[440px]">
+              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                <tr className="text-left">
+                  <th className="py-2 pr-4 font-medium">Time</th>
+                  <th className="py-2 pr-4 font-medium">Differ ≠</th>
+                  <th className="py-2 pr-4 font-medium">Stake</th>
+                  <th className="py-2 pr-4 font-medium">Result</th>
+                  <th className="py-2 pr-0 font-medium text-right">P/L</th>
+                </tr>
+              </thead>
+              <tbody className="font-mono">
+                {s.trades.map((t) => (
+                  <tr key={t.id} className="border-t border-border">
+                    <td className="py-2 pr-4 text-muted-foreground">
+                      {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                    </td>
+                    <td className="py-2 pr-4">{t.digit}</td>
+                    <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
+                    <td className="py-2 pr-4">
+                      {t.status === "open" ? (
+                        <span className="text-warn">open</span>
+                      ) : t.status === "won" ? (
+                        <span className="text-bull">win</span>
+                      ) : (
+                        <span className="text-bear">loss</span>
+                      )}
+                    </td>
+                    <td
+                      className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
+                    >
+                      {t.profit == null ? "—" : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState>Trades will appear here once the bot fires.</EmptyState>
+        )}
+      </Panel>
+    </section>
   );
 
   const StatsPanel = (
     <section className="bg-background p-4 sm:p-5 space-y-5">
-          <SectionLabel>Session</SectionLabel>
-          <div className="space-y-1">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
-            <div className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}>
-              {pnlAnim >= 0 ? "+" : ""}{pnlAnim.toFixed(2)}
-              <span className="text-base text-muted-foreground"> {s?.currency}</span>
-            </div>
-          </div>
+      <SectionLabel>Session</SectionLabel>
+      <div className="space-y-1">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
+        <div
+          className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}
+        >
+          {pnlAnim >= 0 ? "+" : ""}
+          {pnlAnim.toFixed(2)}
+          <span className="text-base text-muted-foreground"> {s?.currency}</span>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Stat label="Wins" value={s?.wins ?? 0} accent="bull" />
-            <Stat label="Losses" value={s?.losses ?? 0} accent="bear" />
-            <Stat label="Trades" value={s?.totalTrades ?? 0} />
-            <Stat
-              label="Win rate"
-              value={`${s && s.totalTrades ? Math.round((s.wins / s.totalTrades) * 100) : 0}%`}
-            />
-          </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Stat label="Wins" value={s?.wins ?? 0} accent="bull" />
+        <Stat label="Losses" value={s?.losses ?? 0} accent="bear" />
+        <Stat label="Trades" value={s?.totalTrades ?? 0} />
+        <Stat
+          label="Win rate"
+          value={`${s && s.totalTrades ? Math.round((s.wins / s.totalTrades) * 100) : 0}%`}
+        />
+      </div>
 
-          <Divider />
-          <SectionLabel>Bot</SectionLabel>
-          <Row k="Status" v={statusLabel} />
-          <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
-          <Row k="Reps waited" v={`${cfg.repetitionCount}`} />
-          <Row k="Streak" v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`} />
-          <Row k="Symbol" v="R_100" />
-          <Row k="Duration" v="1 tick" />
+      <Divider />
+      <SectionLabel>Bot</SectionLabel>
+      <Row k="Status" v={statusLabel} />
+      <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
+      <Row k="Reps waited" v={`${cfg.repetitionCount}`} />
+      <Row k="Streak" v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`} />
+      <Row k="Symbol" v="R_100" />
+      <Row k="Duration" v="1 tick" />
 
-          <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Demo and Real tokens are saved separately and are only loaded for your signed-in account.
-          </p>
-        </section>
+      <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
+        Demo and Real tokens are saved separately and are only loaded for your signed-in account.
+      </p>
+    </section>
   );
 
   const HistoryPanel = (
@@ -734,19 +848,27 @@ function Dashboard() {
             <div className="h-2 w-2 rounded-sm bg-primary" />
           </div>
           <h1 className="font-display text-sm sm:text-base font-semibold tracking-tight truncate">
-            ThDpstSmrtTrdr<span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
+            ThDpstSmrtTrdr
+            <span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <span className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`} style={{ backgroundColor: "currentColor" }} />
+            <span
+              className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`}
+              style={{ backgroundColor: "currentColor" }}
+            />
             <span className={statusColor}>{statusLabel}</span>
           </div>
           <div className="text-muted-foreground font-mono">
             <span className="hidden sm:inline">{s?.currency} </span>
-            <span className="text-foreground">{s?.balance != null ? s.balance.toFixed(2) : "—"}</span>
+            <span className="text-foreground">
+              {s?.balance != null ? s.balance.toFixed(2) : "—"}
+            </span>
           </div>
-          <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">{user.email}</div>
+          <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">
+            {user.email}
+          </div>
           {notifSupported && (
             <button
               onClick={requestNotifications}
@@ -756,8 +878,8 @@ function Dashboard() {
                 notifPerm === "granted"
                   ? "Trade notifications enabled"
                   : notifPerm === "denied"
-                  ? "Notifications blocked — enable them in your browser settings"
-                  : "Enable trade notifications"
+                    ? "Notifications blocked — enable them in your browser settings"
+                    : "Enable trade notifications"
               }
               aria-label="Toggle notifications"
             >
@@ -791,15 +913,35 @@ function Dashboard() {
       <div className="lg:hidden">
         <Tabs defaultValue="live" className="w-full">
           <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 rounded-none border-b border-border bg-background h-11 p-1">
-            <TabsTrigger value="controls" className="text-xs gap-1.5"><Settings className="h-3.5 w-3.5" /><span className="inline">Controls</span></TabsTrigger>
-            <TabsTrigger value="live" className="text-xs gap-1.5"><Activity className="h-3.5 w-3.5" /><span className="inline">Live</span></TabsTrigger>
-            <TabsTrigger value="stats" className="text-xs gap-1.5"><BarChart3 className="h-3.5 w-3.5" /><span className="inline">Stats</span></TabsTrigger>
-            <TabsTrigger value="history" className="text-xs gap-1.5"><History className="h-3.5 w-3.5" /><span className="inline">History</span></TabsTrigger>
+            <TabsTrigger value="controls" className="text-xs gap-1.5">
+              <Settings className="h-3.5 w-3.5" />
+              <span className="inline">Controls</span>
+            </TabsTrigger>
+            <TabsTrigger value="live" className="text-xs gap-1.5">
+              <Activity className="h-3.5 w-3.5" />
+              <span className="inline">Live</span>
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="text-xs gap-1.5">
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span className="inline">Stats</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs gap-1.5">
+              <History className="h-3.5 w-3.5" />
+              <span className="inline">History</span>
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="controls" className="mt-0">{ControlsPanel}</TabsContent>
-          <TabsContent value="live" className="mt-0">{LivePanel}</TabsContent>
-          <TabsContent value="stats" className="mt-0">{StatsPanel}</TabsContent>
-          <TabsContent value="history" className="mt-0">{HistoryPanel}</TabsContent>
+          <TabsContent value="controls" className="mt-0">
+            {ControlsPanel}
+          </TabsContent>
+          <TabsContent value="live" className="mt-0">
+            {LivePanel}
+          </TabsContent>
+          <TabsContent value="stats" className="mt-0">
+            {StatsPanel}
+          </TabsContent>
+          <TabsContent value="history" className="mt-0">
+            {HistoryPanel}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -848,7 +990,11 @@ function Dashboard() {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{children}</div>;
+  return (
+    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </div>
+  );
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -858,7 +1004,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-function NumInput({ value, onChange, min, step }: { value: number; onChange: (v: number) => void; min?: number; step?: number }) {
+function NumInput({
+  value,
+  onChange,
+  min,
+  step,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  step?: number;
+}) {
   return (
     <input
       type="number"
@@ -870,8 +1026,18 @@ function NumInput({ value, onChange, min, step }: { value: number; onChange: (v:
     />
   );
 }
-function Divider() { return <div className="h-px bg-border" />; }
-function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Divider() {
+  return <div className="h-px bg-border" />;
+}
+function Panel({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-border bg-surface/40 p-5">
       <div className="mb-4 flex items-baseline justify-between">
@@ -882,8 +1048,17 @@ function Panel({ title, hint, children }: { title: string; hint?: string; childr
     </div>
   );
 }
-function Stat({ label, value, accent }: { label: string; value: number | string; accent?: "bull" | "bear" }) {
-  const color = accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : "text-foreground";
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  accent?: "bull" | "bear";
+}) {
+  const color =
+    accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : "text-foreground";
   return (
     <div className="rounded-md bg-surface px-3 py-2.5">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
@@ -900,5 +1075,7 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 function EmptyState({ children }: { children: React.ReactNode }) {
-  return <div className="grid place-items-center py-8 text-xs text-muted-foreground">{children}</div>;
+  return (
+    <div className="grid place-items-center py-8 text-xs text-muted-foreground">{children}</div>
+  );
 }

@@ -83,7 +83,11 @@ export class DerivBot {
   }
 
   private emit() {
-    const snap = { ...this.state, ticks: this.state.ticks.slice(), trades: this.state.trades.slice() };
+    const snap = {
+      ...this.state,
+      ticks: this.state.ticks.slice(),
+      trades: this.state.trades.slice(),
+    };
     this.listeners.forEach((l) => l(snap));
   }
 
@@ -97,7 +101,11 @@ export class DerivBot {
   }
 
   connect() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+    )
+      return;
     this.patch({ error: null });
     const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${this.cfg.appId}`);
     this.ws = ws;
@@ -154,7 +162,12 @@ export class DerivBot {
         this.patch({ error: msg.error.message, authorized: false });
         return;
       }
-      this.patch({ authorized: true, balance: msg.authorize.balance, currency: msg.authorize.currency, error: null });
+      this.patch({
+        authorized: true,
+        balance: msg.authorize.balance,
+        currency: msg.authorize.currency,
+        error: null,
+      });
       // subscribe to balance + ticks
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
       this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
@@ -237,7 +250,9 @@ export class DerivBot {
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
 
       // Subscribe to contract updates
-      this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }).catch(() => {});
+      this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }).catch(
+        () => {},
+      );
     } catch (e: any) {
       this.patch({ error: e?.message || "Trade failed", pendingTrade: false });
     }
@@ -248,7 +263,7 @@ export class DerivBot {
     const profit = Number(c.profit);
     const status: Trade["status"] = profit >= 0 ? "won" : "lost";
     const trades = this.state.trades.map((t) =>
-      t.id === String(c.contract_id) ? { ...t, status, profit, payout: c.payout } : t
+      t.id === String(c.contract_id) ? { ...t, status, profit, payout: c.payout } : t,
     );
     const pnl = this.state.pnl + profit;
     const wins = this.state.wins + (status === "won" ? 1 : 0);
@@ -282,9 +297,20 @@ export class DerivBot {
 
   disconnect() {
     this.stop();
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
-    this.patch({ connected: false, authorized: false, balance: null, lastDigit: null, lastPrice: null, streak: 0, ticks: [] });
+    this.patch({
+      connected: false,
+      authorized: false,
+      balance: null,
+      lastDigit: null,
+      lastPrice: null,
+      streak: 0,
+      ticks: [],
+    });
   }
 }

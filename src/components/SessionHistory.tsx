@@ -32,7 +32,9 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [userId, refreshKey]);
+  useEffect(() => {
+    load(); /* eslint-disable-next-line */
+  }, [userId, refreshKey]);
 
   async function remove(id: string) {
     await supabase.from("trading_sessions").delete().eq("id", id);
@@ -47,7 +49,7 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
       acc.trades += r.total_trades;
       return acc;
     },
-    { pnl: 0, wins: 0, losses: 0, trades: 0 }
+    { pnl: 0, wins: 0, losses: 0, trades: 0 },
   );
   const overallWinRate = totals.trades ? Math.round((totals.wins / totals.trades) * 100) : 0;
 
@@ -66,7 +68,11 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
       {/* Totals */}
       <div className="grid grid-cols-4 gap-2 mb-4">
         <Tot label="Sessions" v={String(rows.length)} />
-        <Tot label="Net P/L" v={`${totals.pnl >= 0 ? "+" : ""}${totals.pnl.toFixed(2)}`} accent={totals.pnl >= 0 ? "bull" : "bear"} />
+        <Tot
+          label="Net P/L"
+          v={`${totals.pnl >= 0 ? "+" : ""}${totals.pnl.toFixed(2)}`}
+          accent={totals.pnl >= 0 ? "bull" : "bear"}
+        />
         <Tot label="Trades" v={String(totals.trades)} />
         <Tot label="Win rate" v={`${overallWinRate}%`} />
       </div>
@@ -97,7 +103,10 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
                 return (
                   <tr key={r.id} className="border-t border-border">
                     <td className="py-2 pr-3 text-muted-foreground">
-                      {new Date(r.ended_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+                      {new Date(r.ended_at).toLocaleString([], {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
                     </td>
                     <td className="py-2 pr-3">
                       <span className={r.account_type === "real" ? "text-bear" : "text-primary"}>
@@ -113,7 +122,8 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
                     <td className="py-2 pr-3">{wr}%</td>
                     <td className="py-2 pr-3">{r.repetition_count ?? 0}</td>
                     <td className={`py-2 pr-3 text-right ${pnl >= 0 ? "text-bull" : "text-bear"}`}>
-                      {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
+                      {pnl >= 0 ? "+" : ""}
+                      {pnl.toFixed(2)}
                     </td>
                     <td className="py-2 pr-0 text-right">
                       <button
@@ -136,7 +146,8 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
 }
 
 function Tot({ label, v, accent }: { label: string; v: string; accent?: "bull" | "bear" }) {
-  const color = accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : "text-foreground";
+  const color =
+    accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : "text-foreground";
   return (
     <div className="rounded-md bg-surface px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>

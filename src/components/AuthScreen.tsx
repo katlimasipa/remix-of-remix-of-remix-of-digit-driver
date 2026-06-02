@@ -36,12 +36,8 @@ export function AuthScreen() {
             <div className="mx-auto mb-4 grid h-10 w-10 place-items-center rounded-md bg-primary/15">
               <div className="h-3 w-3 rounded-sm bg-primary" />
             </div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight">
-              ThDpstSmrtTrdr
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sign in to access your trading bot
-            </p>
+            <h1 className="font-display text-2xl font-semibold tracking-tight">ThDpstSmrtTrdr</h1>
+            <p className="mt-1 text-xs text-muted-foreground">Sign in to access your trading bot</p>
           </div>
 
           <div className="rounded-xl border border-border bg-surface/40 p-6 shadow-2xl shadow-black/30">
