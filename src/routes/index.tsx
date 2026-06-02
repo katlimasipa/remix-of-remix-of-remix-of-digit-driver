@@ -80,6 +80,7 @@ function Dashboard() {
   const [realToken, setRealToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [tokenLoaded, setTokenLoaded] = useState(false);
+  const [tokenLoadError, setTokenLoadError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [confirmReal, setConfirmReal] = useState(false);
   const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
@@ -288,18 +289,29 @@ function Dashboard() {
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
+      setTokenLoadError(null);
       setDemoToken("");
       setRealToken("");
       return;
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      setTokenLoaded(false);
+      setTokenLoadError(null);
+      const { data, error } = await supabase
         .from("profiles")
         .select("email, deriv_token, deriv_token_demo, deriv_token_real, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
+      if (error) {
+        console.error("Profile token load failed:", error);
+        setDemoToken("");
+        setRealToken("");
+        setTokenLoadError("Saved token could not be loaded. Please try signing out and back in.");
+        setTokenLoaded(true);
+        return;
+      }
       const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
       const rt = data?.deriv_token_real ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
@@ -311,11 +323,15 @@ function Dashboard() {
 
       // Older accounts may not have a profile row yet; create one scoped to this user.
       if (!data) {
-        await supabase.from("profiles").upsert({
+        const { error: createError } = await supabase.from("profiles").upsert({
           id: user.id,
           email: user.email ?? null,
           account_type: at,
         });
+        if (createError && !cancelled) {
+          console.error("Profile creation failed:", createError);
+          setTokenLoadError("Your profile was created late, but token saving is not ready yet. Refresh and try again.");
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -341,9 +357,10 @@ function Dashboard() {
 
   async function persistActiveToken() {
     if (!user) return;
+    const token = accountType === "real" ? realToken.trim() : demoToken.trim();
     const patch = accountType === "real"
-      ? { deriv_token_real: realToken }
-      : { deriv_token_demo: demoToken };
+      ? { deriv_token_real: token }
+      : { deriv_token_demo: token };
     const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email ?? null,
@@ -359,7 +376,10 @@ function Dashboard() {
     setSavedMsg(null);
     const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
     setSavingToken(false);
-    if (error) setSavedMsg("Save failed");
+    if (error) {
+      console.error("Token save failed:", error);
+      setSavedMsg("Save failed — refresh and try again");
+    }
     else {
       setCfg({ ...cfg, token: activeToken });
       setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
@@ -374,7 +394,8 @@ function Dashboard() {
     const error = await persistActiveToken().then(() => null).catch((e) => e as Error);
     setSavingToken(false);
     if (error) {
-      setSavedMsg("Save failed");
+      console.error("Token save before connect failed:", error);
+      setSavedMsg("Save failed — refresh and try again");
       return;
     }
     setCfg({ ...cfg, token: activeToken });
@@ -485,6 +506,16 @@ function Dashboard() {
           </div>
           {savedMsg && (
             <div className="text-[11px] text-muted-foreground">{savedMsg}</div>
+          )}
+          {tokenLoaded && !tokenLoadError && !activeToken && (
+            <div className="text-[11px] text-muted-foreground">
+              No saved {accountType} token found yet.
+            </div>
+          )}
+          {tokenLoadError && (
+            <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+              {tokenLoadError}
+            </div>
           )}
 
           <Divider />
