@@ -199,14 +199,26 @@ export class DerivBot {
     return parseInt(s[s.length - 1], 10);
   }
 
+  private streakDigit: number | null = null;
+
   private handleTick(price: number) {
     const digit = this.lastDigitOf(price);
     const tick = { price, digit, time: Date.now() };
     const ticks = [tick, ...this.state.ticks].slice(0, 60);
 
     let streak = this.state.streak;
-    if (digit === this.cfg.targetDigit) streak += 1;
-    else streak = 0;
+    if (this.cfg.triggerMode === "any") {
+      // Streak = how many times the current digit has repeated in a row
+      if (this.streakDigit === digit) streak += 1;
+      else {
+        this.streakDigit = digit;
+        streak = 1;
+      }
+    } else {
+      if (digit === this.cfg.targetDigit) streak += 1;
+      else streak = 0;
+      this.streakDigit = this.cfg.targetDigit;
+    }
 
     this.patch({ lastDigit: digit, lastPrice: price, ticks, streak });
 
@@ -218,12 +230,17 @@ export class DerivBot {
       this.cooldown === 0 &&
       streak >= this.cfg.repetitionCount
     ) {
-      this.placeTrade();
+      this.placeTrade(digit);
     }
   }
 
-  private async placeTrade() {
+  private async placeTrade(triggerDigit: number) {
+    // In "any" mode, trade DIGITDIFF against the digit that just repeated.
+    // In "specific" mode, always use the configured targetDigit.
+    const barrierDigit =
+      this.cfg.triggerMode === "any" ? triggerDigit : this.cfg.targetDigit;
     this.patch({ pendingTrade: true, streak: 0 });
+    this.streakDigit = null;
     this.cooldown = 2;
     try {
       const proposal = await this.send({
@@ -235,7 +252,7 @@ export class DerivBot {
         duration: 1,
         duration_unit: "t",
         symbol: SYMBOL,
-        barrier: String(this.cfg.targetDigit),
+        barrier: String(barrierDigit),
       });
       if (proposal.error) throw new Error(proposal.error.message);
 
