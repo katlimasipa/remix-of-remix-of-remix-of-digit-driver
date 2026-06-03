@@ -542,6 +542,25 @@ function Dashboard() {
         )}
       </div>
 
+      <div className="space-y-2">
+        <button
+          className="btn-primary w-full"
+          onClick={() => {
+            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
+          }}
+        >
+          Sign in with Deriv (OAuth)
+        </button>
+        <p className="text-[10.5px] text-muted-foreground leading-snug">
+          Recommended. Signs you in and saves both Demo and Real tokens
+          automatically. Requires your app's redirect URL to be set to{" "}
+          <code className="font-mono text-[10px]">{typeof window !== "undefined" ? window.location.origin : ""}</code>{" "}
+          in your Deriv app settings.
+        </p>
+      </div>
+
+      <Divider />
+      <SectionLabel>Manual Token (optional)</SectionLabel>
       <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
         <input
           type="password"
@@ -564,17 +583,10 @@ function Dashboard() {
           title="Save manual token"
         >
           <Save className="h-3.5 w-3.5" />
+          Save
         </button>
         <button
-          className="btn-primary"
-          onClick={() => {
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
-          }}
-        >
-          Deriv OAuth
-        </button>
-        <button
-          className="btn-secondary col-span-2"
+          className="btn-secondary"
           onClick={connectWithSavedToken}
           disabled={!activeToken || s?.connected || savingToken}
         >
@@ -584,7 +596,7 @@ function Dashboard() {
       {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
       {tokenLoaded && !tokenLoadError && !activeToken && (
         <div className="text-[11px] text-muted-foreground">
-          No saved {accountType} token found yet.
+          No saved {accountType} token yet — use OAuth above or paste one manually.
         </div>
       )}
       {tokenLoadError && (
