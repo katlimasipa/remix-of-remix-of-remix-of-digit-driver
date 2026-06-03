@@ -263,7 +263,7 @@ export class DerivBot {
       const trade: Trade = {
         id: String(contractId),
         time: Date.now(),
-        digit: this.cfg.targetDigit,
+        digit: barrierDigit,
         buyPrice: buy.buy.buy_price,
         status: "open",
       };
