@@ -307,39 +307,51 @@ function Dashboard() {
       return;
     }
 
-    // Check for Deriv OAuth tokens in the URL
+    // Deriv OAuth returns one or more accounts as acct1/token1/cur1,
+    // acct2/token2/cur2, ... so we capture both Demo (VRTC*) and Real
+    // tokens in a single round-trip.
     const params = new URLSearchParams(window.location.search);
-    const oauthToken = params.get("token1");
-    const oauthAcct = params.get("acct1");
+    const oauthAccounts: { acct: string; token: string }[] = [];
+    for (let i = 1; i < 20; i++) {
+      const acct = params.get(`acct${i}`);
+      const token = params.get(`token${i}`);
+      if (!acct || !token) break;
+      oauthAccounts.push({ acct, token });
+    }
 
     let cancelled = false;
     (async () => {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      // If we got an OAuth token, save it to the profile first
-      if (oauthToken && oauthAcct) {
-        const isReal = !oauthAcct.startsWith("VRTC");
-        if (isReal) {
-          setRealToken(oauthToken);
-          setAccountType("real");
-        } else {
-          setDemoToken(oauthToken);
-          setAccountType("demo");
+      if (oauthAccounts.length > 0) {
+        let demoTok = "";
+        let realTok = "";
+        for (const a of oauthAccounts) {
+          if (a.acct.startsWith("VRTC")) demoTok = a.token;
+          else realTok = a.token;
         }
+        const preferred: "demo" | "real" = realTok ? "real" : "demo";
+        if (demoTok) setDemoToken(demoTok);
+        if (realTok) setRealToken(realTok);
+        setAccountType(preferred);
 
-        const patch = isReal
-          ? { deriv_token_real: oauthToken, account_type: "real" }
-          : { deriv_token_demo: oauthToken, account_type: "demo" };
+        const patch: Record<string, string> = { account_type: preferred };
+        if (demoTok) patch.deriv_token_demo = demoTok;
+        if (realTok) patch.deriv_token_real = realTok;
 
-        await supabase.from("profiles").upsert({
+        const { error: upsertErr } = await supabase.from("profiles").upsert({
           id: user.id,
           email: user.email ?? null,
           ...patch,
         });
+        if (upsertErr) console.error("OAuth token save failed:", upsertErr);
 
-        // Clean up the URL so the token doesn't stay in the browser history
         window.history.replaceState({}, document.title, window.location.pathname);
+        setSavedMsg(
+          `Connected ${oauthAccounts.length} Deriv account${oauthAccounts.length > 1 ? "s" : ""} via OAuth`,
+        );
+        setTimeout(() => setSavedMsg(null), 3000);
       }
 
       const { data, error } = await supabase
@@ -530,6 +542,25 @@ function Dashboard() {
         )}
       </div>
 
+      <div className="space-y-2">
+        <button
+          className="btn-primary w-full"
+          onClick={() => {
+            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
+          }}
+        >
+          Sign in with Deriv (OAuth)
+        </button>
+        <p className="text-[10.5px] text-muted-foreground leading-snug">
+          Recommended. Signs you in and saves both Demo and Real tokens
+          automatically. Requires your app's redirect URL to be set to{" "}
+          <code className="font-mono text-[10px]">{typeof window !== "undefined" ? window.location.origin : ""}</code>{" "}
+          in your Deriv app settings.
+        </p>
+      </div>
+
+      <Divider />
+      <SectionLabel>Manual Token (optional)</SectionLabel>
       <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
         <input
           type="password"
@@ -552,17 +583,10 @@ function Dashboard() {
           title="Save manual token"
         >
           <Save className="h-3.5 w-3.5" />
+          Save
         </button>
         <button
-          className="btn-primary"
-          onClick={() => {
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
-          }}
-        >
-          Deriv OAuth
-        </button>
-        <button
-          className="btn-secondary col-span-2"
+          className="btn-secondary"
           onClick={connectWithSavedToken}
           disabled={!activeToken || s?.connected || savingToken}
         >
@@ -572,7 +596,7 @@ function Dashboard() {
       {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
       {tokenLoaded && !tokenLoadError && !activeToken && (
         <div className="text-[11px] text-muted-foreground">
-          No saved {accountType} token found yet.
+          No saved {accountType} token yet — use OAuth above or paste one manually.
         </div>
       )}
       {tokenLoadError && (
