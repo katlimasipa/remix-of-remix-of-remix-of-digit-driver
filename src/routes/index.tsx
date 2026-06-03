@@ -563,16 +563,26 @@ function Dashboard() {
       <SectionLabel>Manual Token (optional)</SectionLabel>
       <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
         <input
-          type="password"
+          type="text"
           value={accountType === "real" ? realToken : demoToken}
           onChange={(e) => {
-            const v = e.target.value;
-            if (accountType === "real") setRealToken(v.replace(/[^a-zA-Z0-9]/g, ""));
-            else setDemoToken(v.replace(/[^a-zA-Z0-9]/g, ""));
+            const v = e.target.value.trim();
+            if (accountType === "real") setRealToken(v);
+            else setDemoToken(v);
+          }}
+          onPaste={(e) => {
+            e.preventDefault();
+            const v = (e.clipboardData.getData("text") || "").trim();
+            if (accountType === "real") setRealToken(v);
+            else setDemoToken(v);
           }}
           placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
-          className="input"
+          className="input font-mono"
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          name={`deriv-${accountType}-token`}
         />
       </Field>
       <div className="grid grid-cols-2 gap-2">
