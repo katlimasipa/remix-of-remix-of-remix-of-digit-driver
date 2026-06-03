@@ -1,12 +1,15 @@
 // Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100
 // Token lives only in this module's instance memory + sessionStorage; never sent to our server.
 
+export type TriggerMode = "specific" | "any";
+
 export type BotConfig = {
   token: string;
   appId: string;
   symbol: string; // e.g. R_100
   stake: number;
-  targetDigit: number; // 0-9
+  triggerMode: TriggerMode; // "specific" = only targetDigit, "any" = any digit that repeats
+  targetDigit: number; // 0-9 (used when triggerMode === "specific")
   repetitionCount: number;
   stopLoss: number; // positive USD
   takeProfit: number; // positive USD
