@@ -6,6 +6,7 @@ const DEFAULT_CFG: BotConfig = {
   appId: "1089",
   symbol: "R_100",
   stake: 1,
+  triggerMode: "specific",
   targetDigit: 5,
   repetitionCount: 3,
   stopLoss: 10,
