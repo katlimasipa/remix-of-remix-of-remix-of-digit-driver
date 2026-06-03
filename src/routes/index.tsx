@@ -607,20 +607,56 @@ function Dashboard() {
 
       <Divider />
       <SectionLabel>Strategy</SectionLabel>
+
+      <div className="space-y-1.5">
+        <span className="text-[11px] text-muted-foreground">Trigger Mode</span>
+        <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
+          {(
+            [
+              { v: "specific", label: "Specific digit" },
+              { v: "any", label: "Any digit" },
+            ] as const
+          ).map((m) => {
+            const active = (cfg.triggerMode ?? "specific") === m.v;
+            return (
+              <button
+                key={m.v}
+                type="button"
+                onClick={() => setCfg({ ...cfg, triggerMode: m.v })}
+                className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10.5px] text-muted-foreground leading-snug">
+          {cfg.triggerMode === "any"
+            ? "Trades when any digit repeats N times in a row. Trade is placed against the digit that triggered."
+            : "Trades only when the chosen target digit repeats N times in a row."}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Target Digit">
-          <select
-            className="input"
-            value={cfg.targetDigit}
-            onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
-          >
-            {Array.from({ length: 10 }).map((_, i) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {cfg.triggerMode !== "any" && (
+          <Field label="Target Digit">
+            <select
+              className="input"
+              value={cfg.targetDigit}
+              onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+            >
+              {Array.from({ length: 10 }).map((_, i) => (
+                <option key={i} value={i}>
+                  {i}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="Repetitions">
           <NumInput
             value={cfg.repetitionCount}
@@ -645,6 +681,7 @@ function Dashboard() {
           />
         </Field>
       </div>
+
 
       <Divider />
       <SectionLabel>Risk</SectionLabel>
