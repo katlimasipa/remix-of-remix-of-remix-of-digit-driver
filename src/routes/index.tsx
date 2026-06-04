@@ -1086,14 +1086,41 @@ function NumInput({
   min?: number;
   step?: number;
 }) {
+  const [text, setText] = React.useState<string>(String(value));
+  const focusedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!focusedRef.current) setText(String(value));
+  }, [value]);
+
   return (
     <input
       type="number"
       className="input"
-      value={value}
+      value={text}
       min={min}
       step={step}
-      onChange={(e) => onChange(Number(e.target.value))}
+      onFocus={(e) => {
+        focusedRef.current = true;
+        setText("");
+        e.target.select();
+      }}
+      onBlur={() => {
+        focusedRef.current = false;
+        if (text === "" || isNaN(Number(text))) {
+          setText(String(value));
+        } else {
+          const n = Number(text);
+          onChange(n);
+          setText(String(n));
+        }
+      }}
+      onChange={(e) => {
+        setText(e.target.value);
+        if (e.target.value !== "" && !isNaN(Number(e.target.value))) {
+          onChange(Number(e.target.value));
+        }
+      }}
     />
   );
 }
