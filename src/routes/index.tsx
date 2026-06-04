@@ -1086,10 +1086,10 @@ function NumInput({
   min?: number;
   step?: number;
 }) {
-  const [text, setText] = React.useState<string>(String(value));
-  const focusedRef = React.useRef(false);
+  const [text, setText] = useState<string>(String(value));
+  const focusedRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!focusedRef.current) setText(String(value));
   }, [value]);
 
