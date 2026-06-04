@@ -269,13 +269,63 @@ export class DerivBot {
       };
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
 
-      // Subscribe to contract updates
+      // Subscribe to contract updates (streaming)
       this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }).catch(
         () => {},
       );
+
+      // Polling fallback — some sessions never receive a streaming `is_sold` update.
+      this.watchContract(String(contractId));
     } catch (e: any) {
       this.patch({ error: e?.message || "Trade failed", pendingTrade: false });
     }
+  }
+
+  private watchedContracts = new Set<string>();
+
+  private watchContract(contractId: string) {
+    if (this.watchedContracts.has(contractId)) return;
+    this.watchedContracts.add(contractId);
+    const startedAt = Date.now();
+    const MAX_WAIT = 60_000;
+    const POLL_MS = 1500;
+
+    const poll = async () => {
+      const t = this.state.trades.find((x) => x.id === contractId);
+      if (!t || t.status !== "open") {
+        this.watchedContracts.delete(contractId);
+        return;
+      }
+      if (Date.now() - startedAt > MAX_WAIT) {
+        // Safety: never leave pendingTrade stuck — release the lock so new trades can fire.
+        this.watchedContracts.delete(contractId);
+        if (this.state.pendingTrade) {
+          this.patch({ pendingTrade: false, error: "Contract settlement timeout — released lock" });
+        }
+        return;
+      }
+      try {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          const res = await this.send({
+            proposal_open_contract: 1,
+            contract_id: Number(contractId),
+          });
+          if (res?.proposal_open_contract) {
+            this.handleContractUpdate(res.proposal_open_contract);
+          }
+        }
+      } catch {
+        /* ignore — try again */
+      }
+      const after = this.state.trades.find((x) => x.id === contractId);
+      if (after && after.status === "open") {
+        window.setTimeout(poll, POLL_MS);
+      } else {
+        this.watchedContracts.delete(contractId);
+      }
+    };
+
+    window.setTimeout(poll, POLL_MS);
   }
 
   private handleContractUpdate(c: any) {
