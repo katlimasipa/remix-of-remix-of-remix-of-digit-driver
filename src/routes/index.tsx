@@ -1060,14 +1060,14 @@ function Dashboard() {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
       {children}
     </div>
   );
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-[11px] text-muted-foreground">{label}</span>
@@ -1134,7 +1134,7 @@ function Panel({
 }: {
   title: string;
   hint?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface/40 p-5">
@@ -1172,7 +1172,7 @@ function Row({ k, v }: { k: string; v: string }) {
     </div>
   );
 }
-function EmptyState({ children }: { children: React.ReactNode }) {
+function EmptyState({ children }: { children: ReactNode }) {
   return (
     <div className="grid place-items-center py-8 text-xs text-muted-foreground">{children}</div>
   );
