@@ -774,18 +774,23 @@ function Dashboard() {
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-1.5">
-            {digits.map((d, i) => (
-              <span
-                key={i}
-                className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                  d === cfg.targetDigit
-                    ? "bg-primary/15 text-primary"
-                    : "bg-surface text-muted-foreground"
-                }`}
-              >
-                {d}
-              </span>
-            ))}
+            {digits.map((d, i) => {
+              const isAny = cfg.triggerMode === "any";
+              const repeats = digits[i + 1] === d || digits[i - 1] === d;
+              const highlight = isAny ? repeats : d === cfg.targetDigit;
+              return (
+                <span
+                  key={i}
+                  className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
+                    highlight
+                      ? "bg-primary/15 text-primary"
+                      : "bg-surface text-muted-foreground"
+                  }`}
+                >
+                  {d}
+                </span>
+              );
+            })}
             {digits.length === 0 && (
               <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
             )}
@@ -796,17 +801,23 @@ function Dashboard() {
           <div className="h-[260px] overflow-hidden font-mono text-xs">
             {s?.ticks.length ? (
               <ul className="space-y-1">
-                {s.ticks.slice(0, 14).map((t, i) => (
-                  <li key={t.time + "-" + i} className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                    </span>
-                    <span>{t.price.toFixed(2)}</span>
-                    <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
-                      ·{t.digit}
-                    </span>
-                  </li>
-                ))}
+                {s.ticks.slice(0, 14).map((t, i, arr) => {
+                  const isAny = cfg.triggerMode === "any";
+                  const repeats =
+                    arr[i + 1]?.digit === t.digit || arr[i - 1]?.digit === t.digit;
+                  const highlight = isAny ? repeats : t.digit === cfg.targetDigit;
+                  return (
+                    <li key={t.time + "-" + i} className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                      </span>
+                      <span>{t.price.toFixed(2)}</span>
+                      <span className={highlight ? "text-primary" : ""}>
+                        ·{t.digit}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
