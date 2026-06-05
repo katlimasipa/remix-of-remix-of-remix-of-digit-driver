@@ -756,7 +756,13 @@ function Dashboard() {
             <div
               key={s?.lastDigit ?? "—"}
               className={`font-mono text-[80px] sm:text-[112px] leading-none tracking-tight tick-pulse ${
-                s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
+                (() => {
+                  const isStreak =
+                    s?.lastDigit != null &&
+                    s?.ticks?.[1]?.digit === s?.lastDigit &&
+                    (cfg.triggerMode === "any" || s?.lastDigit === cfg.targetDigit);
+                  return isStreak ? "text-primary digit-glow" : "text-foreground";
+                })()
               }`}
             >
               {s?.lastDigit ?? "—"}
