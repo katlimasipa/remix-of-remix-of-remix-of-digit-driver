@@ -282,6 +282,7 @@ export class DerivBot {
   }
 
   private watchedContracts = new Set<string>();
+  private settledContracts = new Set<string>();
 
   private watchContract(contractId: string) {
     if (this.watchedContracts.has(contractId)) return;
@@ -330,10 +331,24 @@ export class DerivBot {
 
   private handleContractUpdate(c: any) {
     if (!c.is_sold) return;
+    const contractId = String(c.contract_id);
+    const existingTrade = this.state.trades.find((t) => t.id === contractId);
+
+    // Deriv can deliver the same settlement through both the streaming
+    // subscription and the polling fallback. Count a contract exactly once,
+    // and never let an unknown/old contract inflate the session totals.
+    if (!existingTrade || existingTrade.status !== "open" || this.settledContracts.has(contractId)) {
+      this.watchedContracts.delete(contractId);
+      if (existingTrade?.status === "open") this.patch({ pendingTrade: false });
+      return;
+    }
+
+    this.settledContracts.add(contractId);
+    this.watchedContracts.delete(contractId);
     const profit = Number(c.profit);
     const status: Trade["status"] = profit >= 0 ? "won" : "lost";
     const trades = this.state.trades.map((t) =>
-      t.id === String(c.contract_id) ? { ...t, status, profit, payout: c.payout } : t,
+      t.id === contractId ? { ...t, status, profit, payout: c.payout } : t,
     );
     const pnl = this.state.pnl + profit;
     const wins = this.state.wins + (status === "won" ? 1 : 0);
@@ -362,6 +377,8 @@ export class DerivBot {
   }
 
   resetSession() {
+    this.watchedContracts.clear();
+    this.settledContracts.clear();
     this.patch({ pnl: 0, wins: 0, losses: 0, totalTrades: 0, trades: [], streak: 0, error: null });
   }
 
