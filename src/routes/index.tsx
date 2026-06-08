@@ -298,6 +298,21 @@ function Dashboard() {
   }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]); // Load tokens + preferred account type from this signed-in user's profile.
+
+  // Assigns a group index to each digit that's part of a same-digit streak (length ≥ 2).
+  // Consecutive streaks of different digits get different group ids so they can be styled
+  // distinctly (e.g. 0 0 4 4 1 1 → groups 0, 0, 1, 1, 2, 2). Non-streak digits get -1.
+  const computeStreakGroups = (vals: number[]): number[] => {
+    const out: number[] = new Array(vals.length).fill(-1);
+    let g = -1;
+    for (let i = 0; i < vals.length; i++) {
+      const inStreak = vals[i] === vals[i - 1] || vals[i] === vals[i + 1];
+      if (!inStreak) continue;
+      if (i === 0 || vals[i] !== vals[i - 1]) g++;
+      out[i] = g;
+    }
+    return out;
+  };
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
