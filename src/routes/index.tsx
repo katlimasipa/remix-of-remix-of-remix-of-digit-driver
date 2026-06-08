@@ -298,6 +298,21 @@ function Dashboard() {
   }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]); // Load tokens + preferred account type from this signed-in user's profile.
+
+  // Assigns a group index to each digit that's part of a same-digit streak (length ≥ 2).
+  // Consecutive streaks of different digits get different group ids so they can be styled
+  // distinctly (e.g. 0 0 4 4 1 1 → groups 0, 0, 1, 1, 2, 2). Non-streak digits get -1.
+  const computeStreakGroups = (vals: number[]): number[] => {
+    const out: number[] = new Array(vals.length).fill(-1);
+    let g = -1;
+    for (let i = 0; i < vals.length; i++) {
+      const inStreak = vals[i] === vals[i - 1] || vals[i] === vals[i + 1];
+      if (!inStreak) continue;
+      if (i === 0 || vals[i] !== vals[i - 1]) g++;
+      out[i] = g;
+    }
+    return out;
+  };
   useEffect(() => {
     if (!user) {
       setTokenLoaded(false);
@@ -780,23 +795,34 @@ function Dashboard() {
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-1.5">
-            {digits.map((d, i) => {
+            {(() => {
               const isAny = cfg.triggerMode === "any";
-              const repeats = digits[i + 1] === d || digits[i - 1] === d;
-              const highlight = isAny ? repeats : d === cfg.targetDigit;
-              return (
-                <span
-                  key={i}
-                  className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                    highlight
-                      ? "bg-primary/15 text-primary"
-                      : "bg-surface text-muted-foreground"
-                  }`}
-                >
-                  {d}
-                </span>
-              );
-            })}
+              const groups = computeStreakGroups(digits);
+              const styles = [
+                "bg-primary/15 text-primary",
+                "bg-warn/15 text-warn",
+                "bg-bull/15 text-bull",
+                "bg-bear/15 text-bear",
+              ];
+              return digits.map((d, i) => {
+                const g = groups[i];
+                const inStreak = g >= 0;
+                const highlight = isAny ? inStreak : d === cfg.targetDigit;
+                const cls = highlight
+                  ? isAny
+                    ? styles[g % styles.length]
+                    : "bg-primary/15 text-primary"
+                  : "bg-surface text-muted-foreground";
+                return (
+                  <span
+                    key={i}
+                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${cls}`}
+                  >
+                    {d}
+                  </span>
+                );
+              });
+            })()}
             {digits.length === 0 && (
               <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
             )}
@@ -807,23 +833,36 @@ function Dashboard() {
           <div className="h-[260px] overflow-hidden font-mono text-xs">
             {s?.ticks.length ? (
               <ul className="space-y-1">
-                {s.ticks.slice(0, 14).map((t, i, arr) => {
+                {(() => {
+                  const visible = s.ticks.slice(0, 14);
                   const isAny = cfg.triggerMode === "any";
-                  const repeats =
-                    arr[i + 1]?.digit === t.digit || arr[i - 1]?.digit === t.digit;
-                  const highlight = isAny ? repeats : t.digit === cfg.targetDigit;
-                  return (
-                    <li key={t.time + "-" + i} className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                      </span>
-                      <span>{t.price.toFixed(2)}</span>
-                      <span className={highlight ? "text-primary" : ""}>
-                        ·{t.digit}
-                      </span>
-                    </li>
-                  );
-                })}
+                  const groups = computeStreakGroups(visible.map((t) => t.digit));
+                  const colors = [
+                    "text-primary",
+                    "text-warn",
+                    "text-bull",
+                    "text-bear",
+                  ];
+                  return visible.map((t, i) => {
+                    const g = groups[i];
+                    const inStreak = g >= 0;
+                    const highlight = isAny ? inStreak : t.digit === cfg.targetDigit;
+                    const color = highlight
+                      ? isAny
+                        ? colors[g % colors.length]
+                        : "text-primary"
+                      : "";
+                    return (
+                      <li key={t.time + "-" + i} className="flex items-center justify-between">
+                        <span className="text-muted-foreground">
+                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        </span>
+                        <span>{t.price.toFixed(2)}</span>
+                        <span className={color}>·{t.digit}</span>
+                      </li>
+                    );
+                  });
+                })()}
               </ul>
             ) : (
               <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
