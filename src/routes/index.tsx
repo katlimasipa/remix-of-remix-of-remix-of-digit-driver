@@ -780,23 +780,34 @@ function Dashboard() {
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-1.5">
-            {digits.map((d, i) => {
+            {(() => {
               const isAny = cfg.triggerMode === "any";
-              const repeats = digits[i + 1] === d || digits[i - 1] === d;
-              const highlight = isAny ? repeats : d === cfg.targetDigit;
-              return (
-                <span
-                  key={i}
-                  className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                    highlight
-                      ? "bg-primary/15 text-primary"
-                      : "bg-surface text-muted-foreground"
-                  }`}
-                >
-                  {d}
-                </span>
-              );
-            })}
+              const groups = computeStreakGroups(digits);
+              const styles = [
+                "bg-primary/15 text-primary",
+                "bg-warn/15 text-warn",
+                "bg-bull/15 text-bull",
+                "bg-bear/15 text-bear",
+              ];
+              return digits.map((d, i) => {
+                const g = groups[i];
+                const inStreak = g >= 0;
+                const highlight = isAny ? inStreak : d === cfg.targetDigit;
+                const cls = highlight
+                  ? isAny
+                    ? styles[g % styles.length]
+                    : "bg-primary/15 text-primary"
+                  : "bg-surface text-muted-foreground";
+                return (
+                  <span
+                    key={i}
+                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${cls}`}
+                  >
+                    {d}
+                  </span>
+                );
+              });
+            })()}
             {digits.length === 0 && (
               <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
             )}
