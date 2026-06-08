@@ -833,23 +833,36 @@ function Dashboard() {
           <div className="h-[260px] overflow-hidden font-mono text-xs">
             {s?.ticks.length ? (
               <ul className="space-y-1">
-                {s.ticks.slice(0, 14).map((t, i, arr) => {
+                {(() => {
+                  const visible = s.ticks.slice(0, 14);
                   const isAny = cfg.triggerMode === "any";
-                  const repeats =
-                    arr[i + 1]?.digit === t.digit || arr[i - 1]?.digit === t.digit;
-                  const highlight = isAny ? repeats : t.digit === cfg.targetDigit;
-                  return (
-                    <li key={t.time + "-" + i} className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                      </span>
-                      <span>{t.price.toFixed(2)}</span>
-                      <span className={highlight ? "text-primary" : ""}>
-                        ·{t.digit}
-                      </span>
-                    </li>
-                  );
-                })}
+                  const groups = computeStreakGroups(visible.map((t) => t.digit));
+                  const colors = [
+                    "text-primary",
+                    "text-warn",
+                    "text-bull",
+                    "text-bear",
+                  ];
+                  return visible.map((t, i) => {
+                    const g = groups[i];
+                    const inStreak = g >= 0;
+                    const highlight = isAny ? inStreak : t.digit === cfg.targetDigit;
+                    const color = highlight
+                      ? isAny
+                        ? colors[g % colors.length]
+                        : "text-primary"
+                      : "";
+                    return (
+                      <li key={t.time + "-" + i} className="flex items-center justify-between">
+                        <span className="text-muted-foreground">
+                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        </span>
+                        <span>{t.price.toFixed(2)}</span>
+                        <span className={color}>·{t.digit}</span>
+                      </li>
+                    );
+                  });
+                })()}
               </ul>
             ) : (
               <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
