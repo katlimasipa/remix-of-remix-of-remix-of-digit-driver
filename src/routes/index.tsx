@@ -527,7 +527,7 @@ function Dashboard() {
     setConfirmReal(false);
     disconnect();
     const tok = next === "real" ? realToken : demoToken;
-    setCfg({ ...cfg, token: tok });
+    setCfg({ ...cfg, token: tok, accountType: next });
     if (user) {
       supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
     }
