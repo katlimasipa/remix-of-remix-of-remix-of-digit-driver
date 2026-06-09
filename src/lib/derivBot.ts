@@ -1,18 +1,33 @@
-// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100
-// Token lives only in this module's instance memory + sessionStorage; never sent to our server.
+// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (1HZ100V).
+// Uses Deriv's new API (api.derivws.com/trading/v1/options/...) with OAuth 2.0:
+//   1. List trading accounts via REST (server function — keeps client_id off the client)
+//   2. Request a one-time WS URL for the chosen account (server function)
+//   3. Open the OTP-authenticated WebSocket — no `authorize` handshake needed
+//
+// Falls back to the legacy /websockets/v3 endpoint + `authorize` flow when the
+// user supplies a manual API token (no OAuth session yet).
+
+import {
+  listDerivAccounts,
+  getDerivOtp,
+  createDerivAccount,
+} from "./derivApi.functions";
 
 export type TriggerMode = "specific" | "any";
 
 export type BotConfig = {
+  /** Manual API token (legacy flow). Empty when OAuth is in use. */
   token: string;
-  appId: string;
-  symbol: string; // e.g. R_100
+  /** OAuth 2.0 access token (new flow). Empty when manual token is in use. */
+  accessToken: string;
+  symbol: string; // e.g. 1HZ100V (new) or R_100 (legacy)
   stake: number;
-  triggerMode: TriggerMode; // "specific" = only targetDigit, "any" = any digit that repeats
-  targetDigit: number; // 0-9 (used when triggerMode === "specific")
+  triggerMode: TriggerMode;
+  targetDigit: number;
   repetitionCount: number;
-  stopLoss: number; // positive USD
-  takeProfit: number; // positive USD
+  stopLoss: number;
+  takeProfit: number;
+  accountType: "demo" | "real";
 };
 
 export type Trade = {
@@ -46,12 +61,17 @@ export type BotState = {
 
 type Listener = (s: BotState) => void;
 
-const SYMBOL = "R_100";
+// New-API symbol name for Volatility 100 Index (1-second ticks).
+const SYMBOL_NEW = "1HZ100V";
+// Legacy-API symbol for the manual-token fallback.
+const SYMBOL_LEGACY = "R_100";
+const LEGACY_APP_ID = "1089";
 
 export class DerivBot {
   private ws: WebSocket | null = null;
   private cfg: BotConfig;
   private listeners: Set<Listener> = new Set();
+  private mode: "oauth" | "legacy" = "legacy";
   private state: BotState = {
     connected: false,
     running: false,
@@ -103,14 +123,83 @@ export class DerivBot {
     this.cfg = { ...this.cfg, ...p };
   }
 
-  connect() {
+  async connect() {
     if (
       this.ws &&
       (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
     )
       return;
+
     this.patch({ error: null });
-    const ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${this.cfg.appId}`);
+
+    // Prefer OAuth (new API) when an access_token is present.
+    if (this.cfg.accessToken && this.cfg.accessToken.length > 10) {
+      this.mode = "oauth";
+      await this.connectOAuth();
+    } else if (this.cfg.token && this.cfg.token.trim().length > 0) {
+      this.mode = "legacy";
+      this.connectLegacy();
+    } else {
+      this.patch({ error: "No Deriv credentials — sign in or paste an API token" });
+    }
+  }
+
+  private async connectOAuth() {
+    try {
+      const accounts = await listDerivAccounts({
+        data: { access_token: this.cfg.accessToken },
+      });
+
+      let account = accounts.find((a) => a.account_type === this.cfg.accountType);
+      if (!account) {
+        // Auto-create the account if missing (typical for first-time demo users).
+        account = await createDerivAccount({
+          data: {
+            access_token: this.cfg.accessToken,
+            account_type: this.cfg.accountType,
+          },
+        });
+      }
+      if (!account) {
+        this.patch({ error: `No ${this.cfg.accountType} account available on Deriv` });
+        return;
+      }
+
+      this.patch({
+        balance: account.balance,
+        currency: account.currency || "USD",
+      });
+
+      const { url } = await getDerivOtp({
+        data: {
+          access_token: this.cfg.accessToken,
+          account_id: account.account_id,
+        },
+      });
+
+      const ws = new WebSocket(url);
+      this.ws = ws;
+      ws.onopen = () => {
+        // OTP-authenticated — no `authorize` needed.
+        this.patch({ connected: true, authorized: true, error: null });
+        this.send({ balance: 1, subscribe: 1 }).catch(() => {});
+        this.send({ ticks: SYMBOL_NEW, subscribe: 1 }).catch(() => {});
+      };
+      ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
+      ws.onclose = () => {
+        this.patch({ connected: false, authorized: false });
+        if (this.state.running) this.scheduleReconnect();
+      };
+      ws.onerror = () => this.patch({ error: "WebSocket error" });
+    } catch (e: any) {
+      this.patch({ error: e?.message || "Failed to connect via OAuth" });
+    }
+  }
+
+  private connectLegacy() {
+    const ws = new WebSocket(
+      `wss://ws.derivws.com/websockets/v3?app_id=${LEGACY_APP_ID}`,
+    );
     this.ws = ws;
     ws.onopen = () => {
       this.patch({ connected: true });
@@ -121,9 +210,7 @@ export class DerivBot {
       this.patch({ connected: false, authorized: false });
       if (this.state.running) this.scheduleReconnect();
     };
-    ws.onerror = () => {
-      this.patch({ error: "WebSocket error" });
-    };
+    ws.onerror = () => this.patch({ error: "WebSocket error" });
   }
 
   private scheduleReconnect() {
@@ -143,7 +230,6 @@ export class DerivBot {
       const req_id = this.reqId++;
       this.pending.set(req_id, resolve);
       this.ws.send(JSON.stringify({ ...payload, req_id }));
-      // safety timeout
       setTimeout(() => {
         if (this.pending.has(req_id)) {
           this.pending.delete(req_id);
@@ -161,6 +247,7 @@ export class DerivBot {
     }
 
     if (msg.msg_type === "authorize") {
+      // Only the legacy flow sees this — OAuth WS opens already authorized.
       if (msg.error) {
         this.patch({ error: msg.error.message, authorized: false });
         return;
@@ -171,9 +258,8 @@ export class DerivBot {
         currency: msg.authorize.currency,
         error: null,
       });
-      // subscribe to balance + ticks
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
-      this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
+      this.send({ ticks: SYMBOL_LEGACY, subscribe: 1 }).catch(() => {});
     }
 
     if (msg.msg_type === "balance" && msg.balance) {
@@ -194,7 +280,6 @@ export class DerivBot {
   }
 
   private lastDigitOf(price: number): number {
-    // Deriv ticks come with variable decimals; use the string form for true last digit
     const s = price.toFixed(2);
     return parseInt(s[s.length - 1], 10);
   }
@@ -208,7 +293,6 @@ export class DerivBot {
 
     let streak = this.state.streak;
     if (this.cfg.triggerMode === "any") {
-      // Streak = how many times the current digit has repeated in a row
       if (this.streakDigit === digit) streak += 1;
       else {
         this.streakDigit = digit;
@@ -235,13 +319,19 @@ export class DerivBot {
   }
 
   private async placeTrade(triggerDigit: number) {
-    // In "any" mode, trade DIGITDIFF against the digit that just repeated.
-    // In "specific" mode, always use the configured targetDigit.
     const barrierDigit =
       this.cfg.triggerMode === "any" ? triggerDigit : this.cfg.targetDigit;
     this.patch({ pendingTrade: true, streak: 0 });
     this.streakDigit = null;
     this.cooldown = 2;
+
+    const symbol = this.mode === "oauth" ? SYMBOL_NEW : SYMBOL_LEGACY;
+    // New API uses `underlying_symbol`; legacy uses `symbol`.
+    const symbolField =
+      this.mode === "oauth"
+        ? { underlying_symbol: symbol }
+        : { symbol };
+
     try {
       const proposal = await this.send({
         proposal: 1,
@@ -251,7 +341,7 @@ export class DerivBot {
         currency: this.state.currency || "USD",
         duration: 1,
         duration_unit: "t",
-        symbol: SYMBOL,
+        ...symbolField,
         barrier: String(barrierDigit),
       });
       if (proposal.error) throw new Error(proposal.error.message);
@@ -269,12 +359,12 @@ export class DerivBot {
       };
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
 
-      // Subscribe to contract updates (streaming)
-      this.send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }).catch(
-        () => {},
-      );
+      this.send({
+        proposal_open_contract: 1,
+        contract_id: contractId,
+        subscribe: 1,
+      }).catch(() => {});
 
-      // Polling fallback — some sessions never receive a streaming `is_sold` update.
       this.watchContract(String(contractId));
     } catch (e: any) {
       this.patch({ error: e?.message || "Trade failed", pendingTrade: false });
@@ -298,10 +388,12 @@ export class DerivBot {
         return;
       }
       if (Date.now() - startedAt > MAX_WAIT) {
-        // Safety: never leave pendingTrade stuck — release the lock so new trades can fire.
         this.watchedContracts.delete(contractId);
         if (this.state.pendingTrade) {
-          this.patch({ pendingTrade: false, error: "Contract settlement timeout — released lock" });
+          this.patch({
+            pendingTrade: false,
+            error: "Contract settlement timeout — released lock",
+          });
         }
         return;
       }
@@ -316,7 +408,7 @@ export class DerivBot {
           }
         }
       } catch {
-        /* ignore — try again */
+        /* retry */
       }
       const after = this.state.trades.find((x) => x.id === contractId);
       if (after && after.status === "open") {
@@ -334,10 +426,11 @@ export class DerivBot {
     const contractId = String(c.contract_id);
     const existingTrade = this.state.trades.find((t) => t.id === contractId);
 
-    // Deriv can deliver the same settlement through both the streaming
-    // subscription and the polling fallback. Count a contract exactly once,
-    // and never let an unknown/old contract inflate the session totals.
-    if (!existingTrade || existingTrade.status !== "open" || this.settledContracts.has(contractId)) {
+    if (
+      !existingTrade ||
+      existingTrade.status !== "open" ||
+      this.settledContracts.has(contractId)
+    ) {
       this.watchedContracts.delete(contractId);
       if (existingTrade?.status === "open") this.patch({ pendingTrade: false });
       return;
@@ -357,7 +450,6 @@ export class DerivBot {
 
     this.patch({ trades, pnl, wins, losses, totalTrades, pendingTrade: false });
 
-    // Risk management
     if (pnl <= -Math.abs(this.cfg.stopLoss)) {
       this.stop();
       this.patch({ error: `Stop Loss hit (${pnl.toFixed(2)})` });
@@ -379,7 +471,15 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
-    this.patch({ pnl: 0, wins: 0, losses: 0, totalTrades: 0, trades: [], streak: 0, error: null });
+    this.patch({
+      pnl: 0,
+      wins: 0,
+      losses: 0,
+      totalTrades: 0,
+      trades: [],
+      streak: 0,
+      error: null,
+    });
   }
 
   disconnect() {
