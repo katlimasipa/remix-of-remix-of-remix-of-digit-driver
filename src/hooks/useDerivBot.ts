@@ -3,14 +3,15 @@ import { DerivBot, type BotConfig, type BotState } from "@/lib/derivBot";
 
 const DEFAULT_CFG: BotConfig = {
   token: "",
-  appId: "33vntL6DjBvmbEkm9DseX",
-  symbol: "R_100",
+  accessToken: "",
+  symbol: "1HZ100V",
   stake: 1,
   triggerMode: "specific",
   targetDigit: 5,
   repetitionCount: 3,
   stopLoss: 10,
   takeProfit: 10,
+  accountType: "demo",
 };
 
 export function useDerivBot() {
