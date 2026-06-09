@@ -8,6 +8,34 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { exchangeDerivCode } from "@/lib/derivOAuth.functions";
+
+
+// PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
+const DERIV_REDIRECT_URI = "https://smrttrdrthdpst.vercel.app/";
+async function generatePkce() {
+  const arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  const charset =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const verifier = Array.from(arr)
+    .map((v) => charset[v % charset.length])
+    .join("");
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const stateBytes = new Uint8Array(16);
+  crypto.getRandomValues(stateBytes);
+  const state = Array.from(stateBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return { verifier, challenge, state };
+}
 import {
   LogOut,
   Save,
@@ -347,12 +375,58 @@ function Dashboard() {
       oauthAccounts.push({ acct, token });
     }
 
+    // PKCE OAuth (new Deriv API) returns ?code=...&state=...
+    const pkceCode = params.get("code");
+    const pkceState = params.get("state");
+    const pkceError = params.get("error");
+
     let cancelled = false;
     (async () => {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      if (oauthAccounts.length > 0) {
+      if (pkceError) {
+        setTokenLoadError(`Deriv sign-in cancelled: ${pkceError}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (pkceCode && pkceState) {
+        const storedState = sessionStorage.getItem("deriv_oauth_state");
+        const verifier = sessionStorage.getItem("deriv_pkce_verifier");
+        sessionStorage.removeItem("deriv_oauth_state");
+        sessionStorage.removeItem("deriv_pkce_verifier");
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        if (!storedState || storedState !== pkceState || !verifier) {
+          setTokenLoadError("OAuth state mismatch — please try signing in again.");
+        } else {
+          try {
+            const tokenRes = await exchangeDerivCode({
+              data: {
+                code: pkceCode,
+                code_verifier: verifier,
+                client_id: cfg.appId,
+                redirect_uri: DERIV_REDIRECT_URI,
+              },
+            });
+            const expiresAt = new Date(
+              Date.now() + (tokenRes.expires_in - 30) * 1000,
+            ).toISOString();
+            const { error: oerr } = await supabase.from("profiles").upsert({
+              id: user.id,
+              email: user.email ?? null,
+              deriv_oauth_token: tokenRes.access_token,
+              deriv_oauth_expires_at: expiresAt,
+            });
+            if (oerr) console.error("OAuth token save failed:", oerr);
+            setSavedMsg("Signed in with Deriv");
+            setTimeout(() => setSavedMsg(null), 3000);
+          } catch (e: any) {
+            console.error("Deriv token exchange failed:", e);
+            setTokenLoadError(
+              `Deriv token exchange failed: ${e?.message ?? "unknown error"}`,
+            );
+          }
+        }
+      } else if (oauthAccounts.length > 0) {
         let demoTok = "";
         let realTok = "";
         for (const a of oauthAccounts) {
@@ -573,19 +647,35 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={() => {
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
+          onClick={async () => {
+            try {
+              const { verifier, challenge, state } = await generatePkce();
+              sessionStorage.setItem("deriv_pkce_verifier", verifier);
+              sessionStorage.setItem("deriv_oauth_state", state);
+              const url = new URL("https://auth.deriv.com/oauth2/auth");
+              url.searchParams.set("response_type", "code");
+              url.searchParams.set("client_id", cfg.appId);
+              url.searchParams.set("redirect_uri", DERIV_REDIRECT_URI);
+              url.searchParams.set("scope", "trade");
+              url.searchParams.set("state", state);
+              url.searchParams.set("code_challenge", challenge);
+              url.searchParams.set("code_challenge_method", "S256");
+              window.location.href = url.toString();
+            } catch (e) {
+              console.error("PKCE init failed:", e);
+            }
           }}
         >
           Sign in with Deriv (OAuth)
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Recommended. Signs you in and saves both Demo and Real tokens
-          automatically. Requires your app's redirect URL to be set to{" "}
-          <code className="font-mono text-[10px]">{typeof window !== "undefined" ? window.location.origin : ""}</code>{" "}
-          in your Deriv app settings.
+          Uses Deriv's new OAuth 2.0 (PKCE). The redirect URL registered with your
+          Deriv app must be exactly{" "}
+          <code className="font-mono text-[10px]">{DERIV_REDIRECT_URI}</code>.
+          Sign-in only works from that URL.
         </p>
       </div>
+
 
       <Divider />
       <SectionLabel>Manual Token (optional)</SectionLabel>

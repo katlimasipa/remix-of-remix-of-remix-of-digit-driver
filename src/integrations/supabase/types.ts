@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           account_type: string
           created_at: string
+          deriv_oauth_expires_at: string | null
+          deriv_oauth_token: string | null
           deriv_token: string | null
           deriv_token_demo: string | null
           deriv_token_real: string | null
@@ -28,6 +30,8 @@ export type Database = {
         Insert: {
           account_type?: string
           created_at?: string
+          deriv_oauth_expires_at?: string | null
+          deriv_oauth_token?: string | null
           deriv_token?: string | null
           deriv_token_demo?: string | null
           deriv_token_real?: string | null
@@ -38,6 +42,8 @@ export type Database = {
         Update: {
           account_type?: string
           created_at?: string
+          deriv_oauth_expires_at?: string | null
+          deriv_oauth_token?: string | null
           deriv_token?: string | null
           deriv_token_demo?: string | null
           deriv_token_real?: string | null
