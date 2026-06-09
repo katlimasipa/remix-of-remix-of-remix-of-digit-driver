@@ -403,10 +403,10 @@ function Dashboard() {
               data: {
                 code: pkceCode,
                 code_verifier: verifier,
-                client_id: cfg.appId,
                 redirect_uri: DERIV_REDIRECT_URI,
               },
             });
+
             const expiresAt = new Date(
               Date.now() + (tokenRes.expires_in - 30) * 1000,
             ).toISOString();
