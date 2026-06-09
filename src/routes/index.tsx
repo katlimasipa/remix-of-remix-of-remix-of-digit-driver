@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { exchangeDerivCode, buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
+import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
 
 
 // Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
@@ -639,9 +639,16 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={() => {
+          onClick={async () => {
             try {
-              const url = buildDerivAuthUrl({ redirect_uri: DERIV_REDIRECT_URI });
+              const { verifier, challenge, state } = await generatePkce();
+              sessionStorage.setItem("deriv_pkce_verifier", verifier);
+              sessionStorage.setItem("deriv_oauth_state", state);
+              const url = buildDerivAuthUrl({
+                redirect_uri: DERIV_REDIRECT_URI,
+                code_challenge: challenge,
+                state,
+              });
               window.location.href = url;
             } catch (e) {
               console.error("Deriv OAuth init failed:", e);
