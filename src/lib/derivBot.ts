@@ -146,18 +146,13 @@ export class DerivBot {
 
   private async connectOAuth() {
     try {
-      const accounts = await listDerivAccounts({
-        data: { access_token: this.cfg.accessToken },
-      });
+      const accounts = await listDerivAccounts({ access_token: this.cfg.accessToken });
 
       let account = accounts.find((a) => a.account_type === this.cfg.accountType);
       if (!account) {
-        // Auto-create the account if missing (typical for first-time demo users).
         account = await createDerivAccount({
-          data: {
-            access_token: this.cfg.accessToken,
-            account_type: this.cfg.accountType,
-          },
+          access_token: this.cfg.accessToken,
+          account_type: this.cfg.accountType,
         });
       }
       if (!account) {
@@ -171,10 +166,8 @@ export class DerivBot {
       });
 
       const { url } = await getDerivOtp({
-        data: {
-          access_token: this.cfg.accessToken,
-          account_id: account.account_id,
-        },
+        access_token: this.cfg.accessToken,
+        account_id: account.account_id,
       });
 
       const ws = new WebSocket(url);
