@@ -801,14 +801,8 @@ function Dashboard() {
             onChange={(v) => setCfg({ ...cfg, stake: v })}
           />
         </Field>
-        <Field label="App ID">
-          <input
-            className="input"
-            value={cfg.appId}
-            onChange={(e) => setCfg({ ...cfg, appId: e.target.value })}
-          />
-        </Field>
       </div>
+
 
 
       <Divider />
