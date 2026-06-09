@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { exchangeDerivCode, buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
+import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
 
 
 // Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
