@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { exchangeDerivCode } from "@/lib/derivOAuth.functions";
+import { exchangeDerivCode, buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 
 
 // PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
@@ -403,10 +403,10 @@ function Dashboard() {
               data: {
                 code: pkceCode,
                 code_verifier: verifier,
-                client_id: cfg.appId,
                 redirect_uri: DERIV_REDIRECT_URI,
               },
             });
+
             const expiresAt = new Date(
               Date.now() + (tokenRes.expires_in - 30) * 1000,
             ).toISOString();
@@ -458,7 +458,9 @@ function Dashboard() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("email, deriv_token, deriv_token_demo, deriv_token_real, account_type")
+        .select(
+          "email, deriv_token, deriv_token_demo, deriv_token_real, account_type, deriv_oauth_token, deriv_oauth_expires_at",
+        )
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -473,11 +475,25 @@ function Dashboard() {
       const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
       const rt = data?.deriv_token_real ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
+
+      // Only use the OAuth token if it hasn't expired.
+      const oauthExp = data?.deriv_oauth_expires_at
+        ? new Date(data.deriv_oauth_expires_at).getTime()
+        : 0;
+      const oauthValid = oauthExp > Date.now() + 10_000;
+      const oauthTok = oauthValid ? (data?.deriv_oauth_token ?? "") : "";
+
       setDemoToken(dt);
       setRealToken(rt);
       setAccountType(at);
-      setCfg((c) => ({ ...c, token: at === "real" ? rt : dt }));
+      setCfg((c) => ({
+        ...c,
+        token: at === "real" ? rt : dt,
+        accessToken: oauthTok,
+        accountType: at,
+      }));
       setTokenLoaded(true);
+
 
       // Older accounts may not have a profile row yet; create one scoped to this user.
       if (!data) {
@@ -511,7 +527,7 @@ function Dashboard() {
     setConfirmReal(false);
     disconnect();
     const tok = next === "real" ? realToken : demoToken;
-    setCfg({ ...cfg, token: tok });
+    setCfg({ ...cfg, token: tok, accountType: next });
     if (user) {
       supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
     }
@@ -652,20 +668,20 @@ function Dashboard() {
               const { verifier, challenge, state } = await generatePkce();
               sessionStorage.setItem("deriv_pkce_verifier", verifier);
               sessionStorage.setItem("deriv_oauth_state", state);
-              const url = new URL("https://auth.deriv.com/oauth2/auth");
-              url.searchParams.set("response_type", "code");
-              url.searchParams.set("client_id", cfg.appId);
-              url.searchParams.set("redirect_uri", DERIV_REDIRECT_URI);
-              url.searchParams.set("scope", "trade");
-              url.searchParams.set("state", state);
-              url.searchParams.set("code_challenge", challenge);
-              url.searchParams.set("code_challenge_method", "S256");
-              window.location.href = url.toString();
+              const { url } = await buildDerivAuthUrl({
+                data: {
+                  redirect_uri: DERIV_REDIRECT_URI,
+                  state,
+                  code_challenge: challenge,
+                },
+              });
+              window.location.href = url;
             } catch (e) {
               console.error("PKCE init failed:", e);
             }
           }}
         >
+
           Sign in with Deriv (OAuth)
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
@@ -801,14 +817,8 @@ function Dashboard() {
             onChange={(v) => setCfg({ ...cfg, stake: v })}
           />
         </Field>
-        <Field label="App ID">
-          <input
-            className="input"
-            value={cfg.appId}
-            onChange={(e) => setCfg({ ...cfg, appId: e.target.value })}
-          />
-        </Field>
       </div>
+
 
 
       <Divider />
