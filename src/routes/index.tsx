@@ -8,6 +8,34 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { exchangeDerivCode } from "@/lib/derivOAuth.functions";
+
+// PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
+const DERIV_REDIRECT_URI = "https://smrttrdrthdpst.vercel.app/";
+async function generatePkce() {
+  const arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  const charset =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const verifier = Array.from(arr)
+    .map((v) => charset[v % charset.length])
+    .join("");
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const stateBytes = new Uint8Array(16);
+  crypto.getRandomValues(stateBytes);
+  const state = Array.from(stateBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return { verifier, challenge, state };
+}
 import {
   LogOut,
   Save,
