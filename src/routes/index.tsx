@@ -647,19 +647,35 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={() => {
-            window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=${cfg.appId}&l=EN`;
+          onClick={async () => {
+            try {
+              const { verifier, challenge, state } = await generatePkce();
+              sessionStorage.setItem("deriv_pkce_verifier", verifier);
+              sessionStorage.setItem("deriv_oauth_state", state);
+              const url = new URL("https://auth.deriv.com/oauth2/auth");
+              url.searchParams.set("response_type", "code");
+              url.searchParams.set("client_id", cfg.appId);
+              url.searchParams.set("redirect_uri", DERIV_REDIRECT_URI);
+              url.searchParams.set("scope", "trade");
+              url.searchParams.set("state", state);
+              url.searchParams.set("code_challenge", challenge);
+              url.searchParams.set("code_challenge_method", "S256");
+              window.location.href = url.toString();
+            } catch (e) {
+              console.error("PKCE init failed:", e);
+            }
           }}
         >
           Sign in with Deriv (OAuth)
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Recommended. Signs you in and saves both Demo and Real tokens
-          automatically. Requires your app's redirect URL to be set to{" "}
-          <code className="font-mono text-[10px]">{typeof window !== "undefined" ? window.location.origin : ""}</code>{" "}
-          in your Deriv app settings.
+          Uses Deriv's new OAuth 2.0 (PKCE). The redirect URL registered with your
+          Deriv app must be exactly{" "}
+          <code className="font-mono text-[10px]">{DERIV_REDIRECT_URI}</code>.
+          Sign-in only works from that URL.
         </p>
       </div>
+
 
       <Divider />
       <SectionLabel>Manual Token (optional)</SectionLabel>
