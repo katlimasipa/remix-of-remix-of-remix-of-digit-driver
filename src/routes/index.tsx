@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { exchangeDerivCode } from "@/lib/derivOAuth.functions";
+import { exchangeDerivCode, buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 
 
 // PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
