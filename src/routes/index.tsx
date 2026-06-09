@@ -11,31 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { exchangeDerivCode, buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 
 
-// PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
-const DERIV_REDIRECT_URI = "https://smrttrdrthdpst.vercel.app/";
-async function generatePkce() {
-  const arr = new Uint8Array(64);
-  crypto.getRandomValues(arr);
-  const charset =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-  const verifier = Array.from(arr)
-    .map((v) => charset[v % charset.length])
-    .join("");
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(verifier),
-  );
-  const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-  const stateBytes = new Uint8Array(16);
-  crypto.getRandomValues(stateBytes);
-  const state = Array.from(stateBytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return { verifier, challenge, state };
-}
+// Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
+// Deriv redirects back with ?acct1=...&token1=...&cur1=... directly.
+const DERIV_REDIRECT_URI = "https://thdpstdgtdffrs.vercel.app/";
 import {
   LogOut,
   Save,
@@ -661,28 +639,20 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={async () => {
+          onClick={() => {
             try {
-              const { verifier, challenge, state } = await generatePkce();
-              sessionStorage.setItem("deriv_pkce_verifier", verifier);
-              sessionStorage.setItem("deriv_oauth_state", state);
-              const { url } = await buildDerivAuthUrl({
-                redirect_uri: DERIV_REDIRECT_URI,
-                state,
-                code_challenge: challenge,
-              });
+              const url = buildDerivAuthUrl({ redirect_uri: DERIV_REDIRECT_URI });
               window.location.href = url;
             } catch (e) {
-              console.error("PKCE init failed:", e);
+              console.error("Deriv OAuth init failed:", e);
             }
           }}
         >
-
           Sign in with Deriv (OAuth)
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Uses Deriv's new OAuth 2.0 (PKCE). The redirect URL registered with your
-          Deriv app must be exactly{" "}
+          Redirects to Deriv to grant access. The redirect URL registered with
+          your Deriv app must be exactly{" "}
           <code className="font-mono text-[10px]">{DERIV_REDIRECT_URI}</code>.
           Sign-in only works from that URL.
         </p>
