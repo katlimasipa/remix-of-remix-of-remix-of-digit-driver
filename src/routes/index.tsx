@@ -581,13 +581,13 @@ function Dashboard() {
           type="text"
           value={accountType === "real" ? realToken : demoToken}
           onChange={(e) => {
-            const v = e.target.value.trim();
+            const v = sanitizeToken(e.target.value);
             if (accountType === "real") setRealToken(v);
             else setDemoToken(v);
           }}
           onPaste={(e) => {
             e.preventDefault();
-            const v = (e.clipboardData.getData("text") || "").trim();
+            const v = sanitizeToken(e.clipboardData.getData("text") || "");
             if (accountType === "real") setRealToken(v);
             else setDemoToken(v);
           }}
