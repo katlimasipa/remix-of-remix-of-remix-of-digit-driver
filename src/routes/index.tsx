@@ -43,6 +43,19 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
+// Strip surrounding whitespace, any "Bearer " prefix, BOM/zero-width chars,
+// and any internal whitespace/control chars. Deriv's newer long API tokens
+// (JWT-style, often 60+ chars with dots/dashes/underscores) are otherwise
+// passed through unchanged so they work alongside the legacy 15-char tokens.
+function sanitizeToken(raw: string): string {
+  return raw
+    .replace(/^\uFEFF/, "")
+    .replace(/^\s*bearer\s+/i, "")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, "")
+    .trim();
+}
+
 function useAnimatedNumber(value: number, duration = 400) {
   const [v, setV] = useState(value);
   const ref = useRef(value);
