@@ -458,7 +458,9 @@ function Dashboard() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("email, deriv_token, deriv_token_demo, deriv_token_real, account_type")
+        .select(
+          "email, deriv_token, deriv_token_demo, deriv_token_real, account_type, deriv_oauth_token, deriv_oauth_expires_at",
+        )
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -473,11 +475,25 @@ function Dashboard() {
       const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
       const rt = data?.deriv_token_real ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
+
+      // Only use the OAuth token if it hasn't expired.
+      const oauthExp = data?.deriv_oauth_expires_at
+        ? new Date(data.deriv_oauth_expires_at).getTime()
+        : 0;
+      const oauthValid = oauthExp > Date.now() + 10_000;
+      const oauthTok = oauthValid ? (data?.deriv_oauth_token ?? "") : "";
+
       setDemoToken(dt);
       setRealToken(rt);
       setAccountType(at);
-      setCfg((c) => ({ ...c, token: at === "real" ? rt : dt }));
+      setCfg((c) => ({
+        ...c,
+        token: at === "real" ? rt : dt,
+        accessToken: oauthTok,
+        accountType: at,
+      }));
       setTokenLoaded(true);
+
 
       // Older accounts may not have a profile row yet; create one scoped to this user.
       if (!data) {
