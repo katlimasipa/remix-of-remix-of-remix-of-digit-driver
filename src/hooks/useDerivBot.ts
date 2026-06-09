@@ -3,7 +3,7 @@ import { DerivBot, type BotConfig, type BotState } from "@/lib/derivBot";
 
 const DEFAULT_CFG: BotConfig = {
   token: "",
-  appId: "1089",
+  appId: "33vntL6DjBvmbEkm9DseX",
   symbol: "R_100",
   stake: 1,
   triggerMode: "specific",
