@@ -400,11 +400,9 @@ function Dashboard() {
         } else {
           try {
             const tokenRes = await exchangeDerivCode({
-              data: {
-                code: pkceCode,
-                code_verifier: verifier,
-                redirect_uri: DERIV_REDIRECT_URI,
-              },
+              code: pkceCode,
+              code_verifier: verifier,
+              redirect_uri: DERIV_REDIRECT_URI,
             });
 
             const expiresAt = new Date(
@@ -669,11 +667,9 @@ function Dashboard() {
               sessionStorage.setItem("deriv_pkce_verifier", verifier);
               sessionStorage.setItem("deriv_oauth_state", state);
               const { url } = await buildDerivAuthUrl({
-                data: {
-                  redirect_uri: DERIV_REDIRECT_URI,
-                  state,
-                  code_challenge: challenge,
-                },
+                redirect_uri: DERIV_REDIRECT_URI,
+                state,
+                code_challenge: challenge,
               });
               window.location.href = url;
             } catch (e) {
