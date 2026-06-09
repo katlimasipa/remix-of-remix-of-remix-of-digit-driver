@@ -8,8 +8,8 @@ import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { useServerFn } from "@tanstack/react-start";
 import { exchangeDerivCode } from "@/lib/derivOAuth.functions";
+
 
 // PKCE helpers for Deriv OAuth 2.0 (https://auth.deriv.com/oauth2/auth)
 const DERIV_REDIRECT_URI = "https://smrttrdrthdpst.vercel.app/";
