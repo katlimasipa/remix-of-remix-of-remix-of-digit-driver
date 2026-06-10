@@ -736,7 +736,7 @@ function Dashboard() {
         <span className="text-[11px] text-muted-foreground">Trigger Mode</span>
         <Select
           value={cfg.triggerMode ?? "specific"}
-          onValueChange={(v) => setCfg({ ...cfg, triggerMode: v })}
+          onValueChange={(v: string) => setCfg({ ...cfg, triggerMode: v as TriggerMode })}
         >
           <SelectTrigger className="w-full text-sm">
             <SelectValue placeholder="Select strategy" />
