@@ -889,7 +889,7 @@ function Dashboard() {
           </div>
           <div className="mt-5 flex flex-wrap gap-1.5">
             {(() => {
-              const isAny = cfg.triggerMode === "any";
+              const isAny = cfg.triggerMode !== "specific";
               const groups = computeStreakGroups(digits);
               const styles = [
                 "bg-primary/15 text-primary",
