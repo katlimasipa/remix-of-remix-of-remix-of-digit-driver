@@ -734,33 +734,21 @@ function Dashboard() {
 
       <div className="space-y-1.5">
         <span className="text-[11px] text-muted-foreground">Trigger Mode</span>
-        <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-xs sm:grid-cols-5">
-          {(
-            [
-              { v: "specific", label: "Specific digit" },
-              { v: "any", label: "Any digit" },
-              { v: "xxyyy", label: "XXYYY = Z" },
-              { v: "odd", label: "Odd reps" },
-              { v: "even", label: "Even reps" },
-            ] as const
-          ).map((m) => {
-            const active = (cfg.triggerMode ?? "specific") === m.v;
-            return (
-              <button
-                key={m.v}
-                type="button"
-                onClick={() => setCfg({ ...cfg, triggerMode: m.v })}
-                className={`rounded px-2 py-1.5 font-medium transition-all ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
+        <Select
+          value={cfg.triggerMode ?? "specific"}
+          onValueChange={(v) => setCfg({ ...cfg, triggerMode: v })}
+        >
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder="Select strategy" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="specific">Specific digit</SelectItem>
+            <SelectItem value="any">Any digit</SelectItem>
+            <SelectItem value="xxyyy">XXYYY = Z</SelectItem>
+            <SelectItem value="odd">Odd reps</SelectItem>
+            <SelectItem value="even">Even reps</SelectItem>
+          </SelectContent>
+        </Select>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
           {cfg.triggerMode === "any"
             ? "Trades when any digit repeats N times in a row. Trade is placed against the digit that triggered."
