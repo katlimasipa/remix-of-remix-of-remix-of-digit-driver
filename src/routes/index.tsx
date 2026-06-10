@@ -7,6 +7,13 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
 import { SessionHistory } from "@/components/SessionHistory";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
 
