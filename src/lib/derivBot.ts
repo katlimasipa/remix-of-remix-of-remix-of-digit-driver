@@ -13,7 +13,7 @@ import {
   createDerivAccount,
 } from "./derivApi.functions";
 
-export type TriggerMode = "specific" | "any";
+export type TriggerMode = "specific" | "any" | "xxyyy" | "odd" | "even";
 
 export type BotConfig = {
   /** Manual API token (legacy flow). Empty when OAuth is in use. */
