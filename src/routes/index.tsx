@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
+import type { TriggerMode } from "@/lib/derivBot";
 
 
 // Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
