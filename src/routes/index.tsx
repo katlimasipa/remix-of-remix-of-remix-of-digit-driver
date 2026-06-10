@@ -727,11 +727,14 @@ function Dashboard() {
 
       <div className="space-y-1.5">
         <span className="text-[11px] text-muted-foreground">Trigger Mode</span>
-        <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
+        <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-xs sm:grid-cols-5">
           {(
             [
               { v: "specific", label: "Specific digit" },
               { v: "any", label: "Any digit" },
+              { v: "xxyyy", label: "XXYYY = Z" },
+              { v: "odd", label: "Odd reps" },
+              { v: "even", label: "Even reps" },
             ] as const
           ).map((m) => {
             const active = (cfg.triggerMode ?? "specific") === m.v;
@@ -740,7 +743,7 @@ function Dashboard() {
                 key={m.v}
                 type="button"
                 onClick={() => setCfg({ ...cfg, triggerMode: m.v })}
-                className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
+                className={`rounded px-2 py-1.5 font-medium transition-all ${
                   active
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -754,12 +757,18 @@ function Dashboard() {
         <p className="text-[10.5px] text-muted-foreground leading-snug">
           {cfg.triggerMode === "any"
             ? "Trades when any digit repeats N times in a row. Trade is placed against the digit that triggered."
+            : cfg.triggerMode === "xxyyy"
+            ? "Detects the pattern XX YYY (one digit repeats twice, then a different digit repeats three times). Predicts the next digit will differ from Y."
+            : cfg.triggerMode === "odd"
+            ? "Trades when an odd digit (1,3,5,7,9) repeats N times in a row. Placed against the triggering digit."
+            : cfg.triggerMode === "even"
+            ? "Trades when an even digit (0,2,4,6,8) repeats N times in a row. Placed against the triggering digit."
             : "Trades only when the chosen target digit repeats N times in a row."}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {cfg.triggerMode !== "any" && (
+        {cfg.triggerMode === "specific" && (
           <Field label="Target Digit">
             <select
               className="input"
@@ -774,14 +783,16 @@ function Dashboard() {
             </select>
           </Field>
         )}
-        <Field label="Repetitions">
-          <NumInput
-            value={cfg.repetitionCount}
-            min={1}
-            step={1}
-            onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
-          />
-        </Field>
+        {cfg.triggerMode !== "xxyyy" && (
+          <Field label="Repetitions">
+            <NumInput
+              value={cfg.repetitionCount}
+              min={1}
+              step={1}
+              onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
+            />
+          </Field>
+        )}
         <Field label="Stake (USD)">
           <NumInput
             value={cfg.stake}
