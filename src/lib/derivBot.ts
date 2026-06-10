@@ -13,7 +13,7 @@ import {
   createDerivAccount,
 } from "./derivApi.functions";
 
-export type TriggerMode = "specific" | "any";
+export type TriggerMode = "specific" | "any" | "xxyyy" | "odd" | "even";
 
 export type BotConfig = {
   /** Manual API token (legacy flow). Empty when OAuth is in use. */
@@ -285,12 +285,46 @@ export class DerivBot {
     const ticks = [tick, ...this.state.ticks].slice(0, 60);
 
     let streak = this.state.streak;
+    let xxyyyTrigger = false;
+    let xxyyyBarrier: number | null = null;
+
     if (this.cfg.triggerMode === "any") {
       if (this.streakDigit === digit) streak += 1;
       else {
         this.streakDigit = digit;
         streak = 1;
       }
+    } else if (this.cfg.triggerMode === "odd" || this.cfg.triggerMode === "even") {
+      const wantOdd = this.cfg.triggerMode === "odd";
+      const matchesParity = wantOdd ? digit % 2 === 1 : digit % 2 === 0;
+      if (!matchesParity) {
+        this.streakDigit = null;
+        streak = 0;
+      } else if (this.streakDigit === digit) {
+        streak += 1;
+      } else {
+        this.streakDigit = digit;
+        streak = 1;
+      }
+    } else if (this.cfg.triggerMode === "xxyyy") {
+      // Detect pattern X X Y Y Y (oldest -> newest). ticks[0] is newest.
+      if (ticks.length >= 5) {
+        const d0 = ticks[0].digit;
+        const d1 = ticks[1].digit;
+        const d2 = ticks[2].digit;
+        const d3 = ticks[3].digit;
+        const d4 = ticks[4].digit;
+        if (d0 === d1 && d1 === d2 && d3 === d4 && d0 !== d3) {
+          xxyyyTrigger = true;
+          xxyyyBarrier = d0;
+          streak = 5;
+        } else {
+          streak = 0;
+        }
+      } else {
+        streak = 0;
+      }
+      this.streakDigit = null;
     } else {
       if (digit === this.cfg.targetDigit) streak += 1;
       else streak = 0;
@@ -304,16 +338,21 @@ export class DerivBot {
     if (
       this.state.running &&
       !this.state.pendingTrade &&
-      this.cooldown === 0 &&
-      streak >= this.cfg.repetitionCount
+      this.cooldown === 0
     ) {
-      this.placeTrade(digit);
+      if (this.cfg.triggerMode === "xxyyy") {
+        if (xxyyyTrigger && xxyyyBarrier !== null) {
+          this.placeTrade(xxyyyBarrier);
+        }
+      } else if (streak >= this.cfg.repetitionCount) {
+        this.placeTrade(digit);
+      }
     }
   }
 
   private async placeTrade(triggerDigit: number) {
     const barrierDigit =
-      this.cfg.triggerMode === "any" ? triggerDigit : this.cfg.targetDigit;
+      this.cfg.triggerMode === "specific" ? this.cfg.targetDigit : triggerDigit;
     this.patch({ pendingTrade: true, streak: 0 });
     this.streakDigit = null;
     this.cooldown = 2;
