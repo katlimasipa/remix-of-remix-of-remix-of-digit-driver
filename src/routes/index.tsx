@@ -746,6 +746,7 @@ function Dashboard() {
             <SelectItem value="specific">Specific digit</SelectItem>
             <SelectItem value="any">Any digit</SelectItem>
             <SelectItem value="xxyyy">XXYYY = Z</SelectItem>
+            <SelectItem value="xxxyy">XXXYY = Z</SelectItem>
             <SelectItem value="odd">Odd reps</SelectItem>
             <SelectItem value="even">Even reps</SelectItem>
           </SelectContent>
@@ -755,6 +756,8 @@ function Dashboard() {
             ? "Trades when any digit repeats N times in a row. Trade is placed against the digit that triggered."
             : cfg.triggerMode === "xxyyy"
             ? "Detects the pattern XX YYY (one digit repeats twice, then a different digit repeats three times). Predicts the next digit will differ from Y."
+            : cfg.triggerMode === "xxxyy"
+            ? "Detects the pattern XXX YY (one digit repeats three times, then a different digit repeats twice). Predicts the next digit will differ from Y."
             : cfg.triggerMode === "odd"
             ? "Trades when an odd digit (1,3,5,7,9) repeats N times in a row. Placed against the triggering digit."
             : cfg.triggerMode === "even"
@@ -779,7 +782,7 @@ function Dashboard() {
             </select>
           </Field>
         )}
-        {cfg.triggerMode !== "xxyyy" && (
+        {cfg.triggerMode !== "xxyyy" && cfg.triggerMode !== "xxxyy" && (
           <Field label="Repetitions">
             <NumInput
               value={cfg.repetitionCount}

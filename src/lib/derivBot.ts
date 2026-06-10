@@ -13,7 +13,7 @@ import {
   createDerivAccount,
 } from "./derivApi.functions";
 
-export type TriggerMode = "specific" | "any" | "xxyyy" | "odd" | "even";
+export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even";
 
 export type BotConfig = {
   /** Manual API token (legacy flow). Empty when OAuth is in use. */
@@ -287,6 +287,8 @@ export class DerivBot {
     let streak = this.state.streak;
     let xxyyyTrigger = false;
     let xxyyyBarrier: number | null = null;
+    let xxxyyTrigger = false;
+    let xxxyyBarrier: number | null = null;
 
     if (this.cfg.triggerMode === "any") {
       if (this.streakDigit === digit) streak += 1;
@@ -325,6 +327,25 @@ export class DerivBot {
         streak = 0;
       }
       this.streakDigit = null;
+    } else if (this.cfg.triggerMode === "xxxyy") {
+      // Detect pattern X X X Y Y (oldest -> newest). ticks[0] is newest.
+      if (ticks.length >= 5) {
+        const d0 = ticks[0].digit;
+        const d1 = ticks[1].digit;
+        const d2 = ticks[2].digit;
+        const d3 = ticks[3].digit;
+        const d4 = ticks[4].digit;
+        if (d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2) {
+          xxxyyTrigger = true;
+          xxxyyBarrier = d0;
+          streak = 5;
+        } else {
+          streak = 0;
+        }
+      } else {
+        streak = 0;
+      }
+      this.streakDigit = null;
     } else {
       if (digit === this.cfg.targetDigit) streak += 1;
       else streak = 0;
@@ -343,6 +364,10 @@ export class DerivBot {
       if (this.cfg.triggerMode === "xxyyy") {
         if (xxyyyTrigger && xxyyyBarrier !== null) {
           this.placeTrade(xxyyyBarrier);
+        }
+      } else if (this.cfg.triggerMode === "xxxyy") {
+        if (xxxyyTrigger && xxxyyBarrier !== null) {
+          this.placeTrade(xxxyyBarrier);
         }
       } else if (streak >= this.cfg.repetitionCount) {
         this.placeTrade(digit);
