@@ -928,7 +928,7 @@ function Dashboard() {
               <ul className="space-y-1">
                 {(() => {
                   const visible = s.ticks.slice(0, 14);
-                  const isAny = cfg.triggerMode === "any";
+                  const isAny = cfg.triggerMode !== "specific";
                   const groups = computeStreakGroups(visible.map((t) => t.digit));
                   const colors = [
                     "text-primary",
