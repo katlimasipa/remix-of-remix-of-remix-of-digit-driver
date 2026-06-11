@@ -69,6 +69,29 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
         </button>
       </div>
 
+      <div className="mb-4 inline-flex rounded-md border border-border bg-surface p-0.5 text-xs">
+        {(["demo", "real"] as const).map((t) => {
+          const count = allRows.filter((r) => r.account_type === t).length;
+          const active = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1 rounded-sm capitalize transition-colors ${
+                active
+                  ? t === "real"
+                    ? "bg-bear/20 text-bear"
+                    : "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t} <span className="opacity-60">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+
       {/* Totals */}
       <div className="grid grid-cols-4 gap-2 mb-4">
         <Tot label="Sessions" v={String(rows.length)} />
