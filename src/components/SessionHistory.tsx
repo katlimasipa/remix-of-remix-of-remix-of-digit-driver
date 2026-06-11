@@ -17,8 +17,9 @@ export type SessionRow = {
 };
 
 export function SessionHistory({ userId, refreshKey }: { userId: string; refreshKey: number }) {
-  const [rows, setRows] = useState<SessionRow[]>([]);
+  const [allRows, setAllRows] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<"demo" | "real">("demo");
 
   async function load() {
     setLoading(true);
@@ -27,8 +28,8 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
       .select("*")
       .eq("user_id", userId)
       .order("ended_at", { ascending: false })
-      .limit(50);
-    setRows((data as SessionRow[]) ?? []);
+      .limit(100);
+    setAllRows((data as SessionRow[]) ?? []);
     setLoading(false);
   }
 
@@ -38,8 +39,11 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
 
   async function remove(id: string) {
     await supabase.from("trading_sessions").delete().eq("id", id);
-    setRows((r) => r.filter((x) => x.id !== id));
+    setAllRows((r) => r.filter((x) => x.id !== id));
   }
+
+  const rows = allRows.filter((r) => r.account_type === tab);
+
 
   const totals = rows.reduce(
     (acc, r) => {
@@ -64,6 +68,29 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
           <RefreshCw className="h-3 w-3" /> {loading ? "…" : "Refresh"}
         </button>
       </div>
+
+      <div className="mb-4 inline-flex rounded-md border border-border bg-surface p-0.5 text-xs">
+        {(["demo", "real"] as const).map((t) => {
+          const count = allRows.filter((r) => r.account_type === t).length;
+          const active = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1 rounded-sm capitalize transition-colors ${
+                active
+                  ? t === "real"
+                    ? "bg-bear/20 text-bear"
+                    : "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t} <span className="opacity-60">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
 
       {/* Totals */}
       <div className="grid grid-cols-4 gap-2 mb-4">
