@@ -140,9 +140,14 @@ function Dashboard() {
     }
     setSavingSession(true);
     stop();
+    // Determine actual account used: match the bot's active token against saved demo/real tokens.
+    const activeTok = (cfg.token ?? "").trim();
+    let actualType: "demo" | "real" = cfg.accountType ?? accountType;
+    if (activeTok && activeTok === realToken.trim()) actualType = "real";
+    else if (activeTok && activeTok === demoToken.trim()) actualType = "demo";
     const { error } = await supabase.from("trading_sessions").insert({
       user_id: user.id,
-      account_type: cfg.accountType ?? accountType,
+      account_type: actualType,
       pnl: Number(s.pnl.toFixed(4)),
       wins: s.wins,
       losses: s.losses,
