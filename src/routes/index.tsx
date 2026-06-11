@@ -142,7 +142,7 @@ function Dashboard() {
     stop();
     const { error } = await supabase.from("trading_sessions").insert({
       user_id: user.id,
-      account_type: accountType,
+      account_type: cfg.accountType ?? accountType,
       pnl: Number(s.pnl.toFixed(4)),
       wins: s.wins,
       losses: s.losses,
