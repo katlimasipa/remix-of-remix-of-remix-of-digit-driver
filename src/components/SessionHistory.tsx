@@ -17,8 +17,9 @@ export type SessionRow = {
 };
 
 export function SessionHistory({ userId, refreshKey }: { userId: string; refreshKey: number }) {
-  const [rows, setRows] = useState<SessionRow[]>([]);
+  const [allRows, setAllRows] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<"demo" | "real">("demo");
 
   async function load() {
     setLoading(true);
@@ -27,8 +28,8 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
       .select("*")
       .eq("user_id", userId)
       .order("ended_at", { ascending: false })
-      .limit(50);
-    setRows((data as SessionRow[]) ?? []);
+      .limit(100);
+    setAllRows((data as SessionRow[]) ?? []);
     setLoading(false);
   }
 
@@ -38,8 +39,11 @@ export function SessionHistory({ userId, refreshKey }: { userId: string; refresh
 
   async function remove(id: string) {
     await supabase.from("trading_sessions").delete().eq("id", id);
-    setRows((r) => r.filter((x) => x.id !== id));
+    setAllRows((r) => r.filter((x) => x.id !== id));
   }
+
+  const rows = allRows.filter((r) => r.account_type === tab);
+
 
   const totals = rows.reduce(
     (acc, r) => {
