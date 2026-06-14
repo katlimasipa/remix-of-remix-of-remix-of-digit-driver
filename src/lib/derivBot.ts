@@ -260,9 +260,10 @@ export class DerivBot {
         this.patch({ error: msg.error.message, authorized: false });
         return;
       }
+      const balance = asFiniteNumber(msg.authorize.balance);
       this.patch({
         authorized: true,
-        balance: msg.authorize.balance,
+        balance,
         currency: msg.authorize.currency,
         error: null,
       });
@@ -271,11 +272,15 @@ export class DerivBot {
     }
 
     if (msg.msg_type === "balance" && msg.balance) {
-      this.patch({ balance: msg.balance.balance, currency: msg.balance.currency });
+      this.patch({
+        balance: asFiniteNumber(msg.balance.balance),
+        currency: msg.balance.currency,
+      });
     }
 
     if (msg.msg_type === "tick" && msg.tick) {
-      this.handleTick(msg.tick.quote);
+      const quote = asFiniteNumber(msg.tick.quote, NaN);
+      if (Number.isFinite(quote)) this.handleTick(quote);
     }
 
     if (msg.msg_type === "proposal_open_contract" && msg.proposal_open_contract) {
