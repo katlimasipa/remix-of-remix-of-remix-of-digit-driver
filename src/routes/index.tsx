@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
-import type { TriggerMode } from "@/lib/derivBot";
+import type { BotState, TriggerMode } from "@/lib/derivBot";
 
 
 // Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
@@ -70,6 +70,80 @@ function sanitizeToken(raw: string): string {
     .trim();
 }
 
+function finiteNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function nullableFiniteNumber(value: unknown): number | null {
+  if (value == null) return null;
+  const n = finiteNumber(value, NaN);
+  return Number.isFinite(n) ? n : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+const EMPTY_BOT_STATE: BotState = {
+  connected: false,
+  running: false,
+  authorized: false,
+  balance: null,
+  currency: "USD",
+  lastDigit: null,
+  lastPrice: null,
+  streak: 0,
+  ticks: [],
+  trades: [],
+  pnl: 0,
+  wins: 0,
+  losses: 0,
+  totalTrades: 0,
+  error: null,
+  pendingTrade: false,
+};
+
+function normalizeBotState(raw: BotState | null): BotState {
+  const source = raw ?? EMPTY_BOT_STATE;
+  return {
+    ...source,
+    balance: nullableFiniteNumber(source.balance),
+    lastPrice: nullableFiniteNumber(source.lastPrice),
+    streak: finiteNumber(source.streak),
+    pnl: finiteNumber(source.pnl),
+    wins: finiteNumber(source.wins),
+    losses: finiteNumber(source.losses),
+    totalTrades: finiteNumber(source.totalTrades),
+    currency: source.currency || "USD",
+    ticks: Array.isArray(source.ticks)
+      ? source.ticks.map((tick) => {
+          const t = asRecord(tick);
+          return {
+            price: finiteNumber(t.price),
+            digit: finiteNumber(t.digit),
+            time: finiteNumber(t.time, Date.now()),
+          };
+        })
+      : [],
+    trades: Array.isArray(source.trades)
+      ? source.trades.map((trade, index) => {
+          const t = asRecord(trade);
+          const status = t.status === "won" || t.status === "lost" ? t.status : "open";
+          return {
+            id: String(t.id ?? `trade-${index}`),
+            time: finiteNumber(t.time, Date.now()),
+            digit: finiteNumber(t.digit),
+            buyPrice: finiteNumber(t.buyPrice),
+            payout: t.payout == null ? undefined : finiteNumber(t.payout),
+            profit: t.profit == null ? undefined : finiteNumber(t.profit),
+            status,
+          };
+        })
+      : [],
+  };
+}
+
 function useAnimatedNumber(value: number, duration = 400) {
   const [v, setV] = useState(value);
   const ref = useRef(value);
@@ -98,24 +172,7 @@ function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
-  const s = state ?? {
-    connected: false,
-    running: false,
-    authorized: false,
-    balance: null,
-    currency: "USD",
-    lastDigit: null,
-    lastPrice: null,
-    streak: 0,
-    ticks: [],
-    trades: [],
-    pnl: 0,
-    wins: 0,
-    losses: 0,
-    totalTrades: 0,
-    error: null,
-    pendingTrade: false,
-  };
+  const s = useMemo(() => normalizeBotState(state), [state]);
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [accountType, setAccountType] = useState<"demo" | "real">("demo");
   const [demoToken, setDemoToken] = useState("");

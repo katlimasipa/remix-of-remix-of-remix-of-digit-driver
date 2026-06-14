@@ -67,6 +67,11 @@ const SYMBOL_NEW = "1HZ100V";
 const SYMBOL_LEGACY = "R_100";
 const LEGACY_APP_ID = "1089";
 
+function asFiniteNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export class DerivBot {
   private ws: WebSocket | null = null;
   private cfg: BotConfig;
@@ -171,7 +176,7 @@ export class DerivBot {
       }
 
       this.patch({
-        balance: account.balance,
+        balance: asFiniteNumber(account.balance),
         currency: account.currency || "USD",
       });
 
@@ -255,9 +260,10 @@ export class DerivBot {
         this.patch({ error: msg.error.message, authorized: false });
         return;
       }
+      const balance = asFiniteNumber(msg.authorize.balance);
       this.patch({
         authorized: true,
-        balance: msg.authorize.balance,
+        balance,
         currency: msg.authorize.currency,
         error: null,
       });
@@ -266,11 +272,15 @@ export class DerivBot {
     }
 
     if (msg.msg_type === "balance" && msg.balance) {
-      this.patch({ balance: msg.balance.balance, currency: msg.balance.currency });
+      this.patch({
+        balance: asFiniteNumber(msg.balance.balance),
+        currency: msg.balance.currency,
+      });
     }
 
     if (msg.msg_type === "tick" && msg.tick) {
-      this.handleTick(msg.tick.quote);
+      const quote = asFiniteNumber(msg.tick.quote, NaN);
+      if (Number.isFinite(quote)) this.handleTick(quote);
     }
 
     if (msg.msg_type === "proposal_open_contract" && msg.proposal_open_contract) {
@@ -421,7 +431,7 @@ export class DerivBot {
         id: String(contractId),
         time: Date.now(),
         digit: barrierDigit,
-        buyPrice: buy.buy.buy_price,
+        buyPrice: asFiniteNumber(buy.buy.buy_price, this.cfg.stake),
         status: "open",
       };
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
@@ -505,10 +515,10 @@ export class DerivBot {
 
     this.settledContracts.add(contractId);
     this.watchedContracts.delete(contractId);
-    const profit = Number(c.profit);
+    const profit = asFiniteNumber(c.profit);
     const status: Trade["status"] = profit >= 0 ? "won" : "lost";
     const trades = this.state.trades.map((t) =>
-      t.id === contractId ? { ...t, status, profit, payout: c.payout } : t,
+      t.id === contractId ? { ...t, status, profit, payout: asFiniteNumber(c.payout) } : t,
     );
     const pnl = this.state.pnl + profit;
     const wins = this.state.wins + (status === "won" ? 1 : 0);
