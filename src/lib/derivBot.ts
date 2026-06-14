@@ -431,7 +431,7 @@ export class DerivBot {
         id: String(contractId),
         time: Date.now(),
         digit: barrierDigit,
-        buyPrice: buy.buy.buy_price,
+        buyPrice: asFiniteNumber(buy.buy.buy_price, this.cfg.stake),
         status: "open",
       };
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
@@ -515,10 +515,10 @@ export class DerivBot {
 
     this.settledContracts.add(contractId);
     this.watchedContracts.delete(contractId);
-    const profit = Number(c.profit);
+    const profit = asFiniteNumber(c.profit);
     const status: Trade["status"] = profit >= 0 ? "won" : "lost";
     const trades = this.state.trades.map((t) =>
-      t.id === contractId ? { ...t, status, profit, payout: c.payout } : t,
+      t.id === contractId ? { ...t, status, profit, payout: asFiniteNumber(c.payout) } : t,
     );
     const pnl = this.state.pnl + profit;
     const wins = this.state.wins + (status === "won" ? 1 : 0);
