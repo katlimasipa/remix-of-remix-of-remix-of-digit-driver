@@ -132,11 +132,21 @@ export class DerivBot {
 
     this.patch({ error: null });
 
-    // Prefer OAuth (new API) when an access_token is present.
+    const manualTok = (this.cfg.token ?? "").trim();
+    // Deriv's new Personal Access Tokens start with `pat_` and only work on the
+    // new API (api.derivws.com/trading/v1/options) — route them through OAuth.
+    const manualIsPat = manualTok.toLowerCase().startsWith("pat_");
+
+    // Prefer OAuth (new API) when an access_token or pat_ token is present.
     if (this.cfg.accessToken && this.cfg.accessToken.length > 10) {
       this.mode = "oauth";
       await this.connectOAuth();
-    } else if (this.cfg.token && this.cfg.token.trim().length > 0) {
+    } else if (manualIsPat) {
+      this.mode = "oauth";
+      // Reuse the OAuth path with the pat_ token as the bearer.
+      this.cfg = { ...this.cfg, accessToken: manualTok };
+      await this.connectOAuth();
+    } else if (manualTok.length > 0) {
       this.mode = "legacy";
       this.connectLegacy();
     } else {
