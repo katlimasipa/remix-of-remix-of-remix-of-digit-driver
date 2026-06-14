@@ -172,24 +172,7 @@ function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
-  const s = state ?? {
-    connected: false,
-    running: false,
-    authorized: false,
-    balance: null,
-    currency: "USD",
-    lastDigit: null,
-    lastPrice: null,
-    streak: 0,
-    ticks: [],
-    trades: [],
-    pnl: 0,
-    wins: 0,
-    losses: 0,
-    totalTrades: 0,
-    error: null,
-    pendingTrade: false,
-  };
+  const s = useMemo(() => normalizeBotState(state), [state]);
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [accountType, setAccountType] = useState<"demo" | "real">("demo");
   const [demoToken, setDemoToken] = useState("");
