@@ -67,6 +67,11 @@ const SYMBOL_NEW = "1HZ100V";
 const SYMBOL_LEGACY = "R_100";
 const LEGACY_APP_ID = "1089";
 
+function asFiniteNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export class DerivBot {
   private ws: WebSocket | null = null;
   private cfg: BotConfig;
@@ -171,7 +176,7 @@ export class DerivBot {
       }
 
       this.patch({
-        balance: account.balance,
+        balance: asFiniteNumber(account.balance),
         currency: account.currency || "USD",
       });
 
