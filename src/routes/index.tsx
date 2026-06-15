@@ -522,54 +522,8 @@ function Dashboard() {
     }
   }
 
-  async function persistActiveToken() {
-    if (!user) return;
-    const token = accountType === "real" ? realToken.trim() : demoToken.trim();
-    const patch =
-      accountType === "real" ? { deriv_token_real: token } : { deriv_token_demo: token };
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email ?? null,
-      account_type: accountType,
-      ...patch,
-    });
-    if (error) throw error;
-  }
 
-  async function saveToken() {
-    if (!user) return;
-    setSavingToken(true);
-    setSavedMsg(null);
-    const error = await persistActiveToken()
-      .then(() => null)
-      .catch((e) => e as Error);
-    setSavingToken(false);
-    if (error) {
-      console.error("Token save failed:", error);
-      setSavedMsg("Save failed — refresh and try again");
-    } else {
-      setCfg({ ...cfg, token: activeToken });
-      setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
-      setTimeout(() => setSavedMsg(null), 2000);
-    }
-  }
 
-  async function connectWithSavedToken() {
-    if (!activeToken) return;
-    setSavingToken(true);
-    setSavedMsg(null);
-    const error = await persistActiveToken()
-      .then(() => null)
-      .catch((e) => e as Error);
-    setSavingToken(false);
-    if (error) {
-      console.error("Token save before connect failed:", error);
-      setSavedMsg("Save failed — refresh and try again");
-      return;
-    }
-    setCfg({ ...cfg, token: activeToken });
-    connect();
-  }
 
   if (loading) {
     return (
