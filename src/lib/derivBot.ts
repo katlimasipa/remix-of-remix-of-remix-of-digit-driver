@@ -131,72 +131,16 @@ export class DerivBot {
 
     this.patch({ error: null });
 
-    const manualTok = (this.cfg.token ?? "").trim();
-    // Deriv's new Personal Access Tokens start with `pat_` and only work on the
-    // new API (api.derivws.com/trading/v1/options) — route them through OAuth.
-    const manualIsPat = manualTok.toLowerCase().startsWith("pat_");
-
-    // Prefer OAuth (new API) when an access_token or pat_ token is present.
-    if (this.cfg.accessToken && this.cfg.accessToken.length > 10) {
-      this.mode = "oauth";
-      await this.connectOAuth();
-    } else if (manualIsPat) {
-      this.mode = "oauth";
-      // Reuse the OAuth path with the pat_ token as the bearer.
-      this.cfg = { ...this.cfg, accessToken: manualTok };
-      await this.connectOAuth();
-    } else if (manualTok.length > 0) {
-      this.mode = "legacy";
-      this.connectLegacy();
-    } else {
-      this.patch({ error: "No Deriv credentials — sign in or paste an API token" });
+    const token = (this.cfg.token ?? "").trim();
+    if (!token) {
+      this.patch({ error: "Not signed in — click Sign in with Deriv" });
+      return;
     }
+    this.mode = "legacy";
+    this.connectLegacy();
   }
 
-  private async connectOAuth() {
-    try {
-      const accounts = await listDerivAccounts({ access_token: this.cfg.accessToken });
 
-      let account = accounts.find((a) => a.account_type === this.cfg.accountType);
-      if (!account) {
-        account = await createDerivAccount({
-          access_token: this.cfg.accessToken,
-          account_type: this.cfg.accountType,
-        });
-      }
-      if (!account) {
-        this.patch({ error: `No ${this.cfg.accountType} account available on Deriv` });
-        return;
-      }
-
-      this.patch({
-        balance: asFiniteNumber(account.balance),
-        currency: account.currency || "USD",
-      });
-
-      const { url } = await getDerivOtp({
-        access_token: this.cfg.accessToken,
-        account_id: account.account_id,
-      });
-
-      const ws = new WebSocket(url);
-      this.ws = ws;
-      ws.onopen = () => {
-        // OTP-authenticated — no `authorize` needed.
-        this.patch({ connected: true, authorized: true, error: null });
-        this.send({ balance: 1, subscribe: 1 }).catch(() => {});
-        this.send({ ticks: SYMBOL_NEW, subscribe: 1 }).catch(() => {});
-      };
-      ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
-      ws.onclose = () => {
-        this.patch({ connected: false, authorized: false });
-        if (this.state.running) this.scheduleReconnect();
-      };
-      ws.onerror = () => this.patch({ error: "WebSocket error" });
-    } catch (e: any) {
-      this.patch({ error: e?.message || "Failed to connect via OAuth" });
-    }
-  }
 
   private connectLegacy() {
     const ws = new WebSocket(
