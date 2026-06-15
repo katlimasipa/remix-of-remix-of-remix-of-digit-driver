@@ -422,56 +422,12 @@ function Dashboard() {
       oauthAccounts.push({ acct, token });
     }
 
-    // PKCE OAuth (new Deriv API) returns ?code=...&state=...
-    const pkceCode = params.get("code");
-    const pkceState = params.get("state");
-    const pkceError = params.get("error");
-
     let cancelled = false;
     (async () => {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      if (pkceError) {
-        setTokenLoadError(`Deriv sign-in cancelled: ${pkceError}`);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (pkceCode && pkceState) {
-        const storedState = sessionStorage.getItem("deriv_oauth_state");
-        const verifier = sessionStorage.getItem("deriv_pkce_verifier");
-        sessionStorage.removeItem("deriv_oauth_state");
-        sessionStorage.removeItem("deriv_pkce_verifier");
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        if (!storedState || storedState !== pkceState || !verifier) {
-          setTokenLoadError("OAuth state mismatch — please try signing in again.");
-        } else {
-          try {
-            const tokenRes = await exchangeDerivCode({
-              code: pkceCode,
-              code_verifier: verifier,
-              redirect_uri: DERIV_REDIRECT_URI,
-            });
-
-            const expiresAt = new Date(
-              Date.now() + (tokenRes.expires_in - 30) * 1000,
-            ).toISOString();
-            const { error: oerr } = await supabase.from("profiles").upsert({
-              id: user.id,
-              email: user.email ?? null,
-              deriv_oauth_token: tokenRes.access_token,
-              deriv_oauth_expires_at: expiresAt,
-            });
-            if (oerr) console.error("OAuth token save failed:", oerr);
-            setSavedMsg("Signed in with Deriv");
-            setTimeout(() => setSavedMsg(null), 3000);
-          } catch (e: any) {
-            console.error("Deriv token exchange failed:", e);
-            setTokenLoadError(
-              `Deriv token exchange failed: ${e?.message ?? "unknown error"}`,
-            );
-          }
-        }
-      } else if (oauthAccounts.length > 0) {
+      if (oauthAccounts.length > 0) {
         let demoTok = "";
         let realTok = "";
         for (const a of oauthAccounts) {
