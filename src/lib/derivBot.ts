@@ -1,17 +1,11 @@
-// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (1HZ100V).
-// Uses Deriv's new API (api.derivws.com/trading/v1/options/...) with OAuth 2.0:
-//   1. List trading accounts via REST (server function — keeps client_id off the client)
-//   2. Request a one-time WS URL for the chosen account (server function)
-//   3. Open the OTP-authenticated WebSocket — no `authorize` handshake needed
-//
-// Falls back to the legacy /websockets/v3 endpoint + `authorize` flow when the
-// user supplies a manual API token (no OAuth session yet).
+// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (R_100).
+// Uses the standard Deriv WebSocket endpoint with the `authorize` handshake.
+// Tokens come from Deriv's classic OAuth flow (oauth.deriv.com/oauth2/authorize)
+// — Deriv redirects back with one token per account; we store demo/real
+// separately and feed the active one in via `cfg.token`.
 
-import {
-  listDerivAccounts,
-  getDerivOtp,
-  createDerivAccount,
-} from "./derivApi.functions";
+import { DERIV_APP_ID } from "./derivOAuth.functions";
+
 
 export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even";
 
