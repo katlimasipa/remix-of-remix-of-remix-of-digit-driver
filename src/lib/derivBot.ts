@@ -55,11 +55,8 @@ export type BotState = {
 
 type Listener = (s: BotState) => void;
 
-// New-API symbol name for Volatility 100 Index (1-second ticks).
-const SYMBOL_NEW = "1HZ100V";
-// Legacy-API symbol for the manual-token fallback.
-const SYMBOL_LEGACY = "R_100";
-const LEGACY_APP_ID = "1089";
+// Symbol for Volatility 100 Index.
+const SYMBOL = "R_100";
 
 function asFiniteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
