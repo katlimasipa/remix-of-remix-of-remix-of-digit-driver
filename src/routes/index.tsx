@@ -23,7 +23,6 @@ import type { BotState, TriggerMode } from "@/lib/derivBot";
 // ?acct1=...&token1=...&cur1=... (one set per account on the user's profile).
 import {
   LogOut,
-  Save,
   Archive,
   Sun,
   Moon,
