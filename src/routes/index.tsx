@@ -15,16 +15,14 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { exchangeDerivCode, buildDerivAuthUrl, generatePkce } from "@/lib/derivOAuth.functions";
+import { buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 import type { BotState, TriggerMode } from "@/lib/derivBot";
 
-
-// Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize and
-// Deriv redirects back with ?acct1=...&token1=...&cur1=... directly.
-const DERIV_REDIRECT_URI = "https://thdpstdgtdffrs.vercel.app/";
+// Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize?app_id=...
+// Deriv redirects back to the URL registered with your app, appending
+// ?acct1=...&token1=...&cur1=... (one set per account on the user's profile).
 import {
   LogOut,
-  Save,
   Archive,
   Sun,
   Moon,
@@ -57,18 +55,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-// Strip surrounding whitespace, any "Bearer " prefix, BOM/zero-width chars,
-// and any internal whitespace/control chars. Deriv's newer long API tokens
-// (JWT-style, often 60+ chars with dots/dashes/underscores) are otherwise
-// passed through unchanged so they work alongside the legacy 15-char tokens.
-function sanitizeToken(raw: string): string {
-  return raw
-    .replace(/^\uFEFF/, "")
-    .replace(/^\s*bearer\s+/i, "")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\s\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, "")
-    .trim();
-}
+
 
 function finiteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -423,56 +410,12 @@ function Dashboard() {
       oauthAccounts.push({ acct, token });
     }
 
-    // PKCE OAuth (new Deriv API) returns ?code=...&state=...
-    const pkceCode = params.get("code");
-    const pkceState = params.get("state");
-    const pkceError = params.get("error");
-
     let cancelled = false;
     (async () => {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      if (pkceError) {
-        setTokenLoadError(`Deriv sign-in cancelled: ${pkceError}`);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (pkceCode && pkceState) {
-        const storedState = sessionStorage.getItem("deriv_oauth_state");
-        const verifier = sessionStorage.getItem("deriv_pkce_verifier");
-        sessionStorage.removeItem("deriv_oauth_state");
-        sessionStorage.removeItem("deriv_pkce_verifier");
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        if (!storedState || storedState !== pkceState || !verifier) {
-          setTokenLoadError("OAuth state mismatch — please try signing in again.");
-        } else {
-          try {
-            const tokenRes = await exchangeDerivCode({
-              code: pkceCode,
-              code_verifier: verifier,
-              redirect_uri: DERIV_REDIRECT_URI,
-            });
-
-            const expiresAt = new Date(
-              Date.now() + (tokenRes.expires_in - 30) * 1000,
-            ).toISOString();
-            const { error: oerr } = await supabase.from("profiles").upsert({
-              id: user.id,
-              email: user.email ?? null,
-              deriv_oauth_token: tokenRes.access_token,
-              deriv_oauth_expires_at: expiresAt,
-            });
-            if (oerr) console.error("OAuth token save failed:", oerr);
-            setSavedMsg("Signed in with Deriv");
-            setTimeout(() => setSavedMsg(null), 3000);
-          } catch (e: any) {
-            console.error("Deriv token exchange failed:", e);
-            setTokenLoadError(
-              `Deriv token exchange failed: ${e?.message ?? "unknown error"}`,
-            );
-          }
-        }
-      } else if (oauthAccounts.length > 0) {
+      if (oauthAccounts.length > 0) {
         let demoTok = "";
         let realTok = "";
         for (const a of oauthAccounts) {
@@ -579,54 +522,8 @@ function Dashboard() {
     }
   }
 
-  async function persistActiveToken() {
-    if (!user) return;
-    const token = accountType === "real" ? realToken.trim() : demoToken.trim();
-    const patch =
-      accountType === "real" ? { deriv_token_real: token } : { deriv_token_demo: token };
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email ?? null,
-      account_type: accountType,
-      ...patch,
-    });
-    if (error) throw error;
-  }
 
-  async function saveToken() {
-    if (!user) return;
-    setSavingToken(true);
-    setSavedMsg(null);
-    const error = await persistActiveToken()
-      .then(() => null)
-      .catch((e) => e as Error);
-    setSavingToken(false);
-    if (error) {
-      console.error("Token save failed:", error);
-      setSavedMsg("Save failed — refresh and try again");
-    } else {
-      setCfg({ ...cfg, token: activeToken });
-      setSavedMsg(`${accountType === "real" ? "Real" : "Demo"} token saved`);
-      setTimeout(() => setSavedMsg(null), 2000);
-    }
-  }
 
-  async function connectWithSavedToken() {
-    if (!activeToken) return;
-    setSavingToken(true);
-    setSavedMsg(null);
-    const error = await persistActiveToken()
-      .then(() => null)
-      .catch((e) => e as Error);
-    setSavingToken(false);
-    if (error) {
-      console.error("Token save before connect failed:", error);
-      setSavedMsg("Save failed — refresh and try again");
-      return;
-    }
-    setCfg({ ...cfg, token: activeToken });
-    connect();
-  }
 
   if (loading) {
     return (
@@ -709,82 +606,32 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={async () => {
-            try {
-              const { verifier, challenge, state } = await generatePkce();
-              sessionStorage.setItem("deriv_pkce_verifier", verifier);
-              sessionStorage.setItem("deriv_oauth_state", state);
-              const url = buildDerivAuthUrl({
-                redirect_uri: DERIV_REDIRECT_URI,
-                code_challenge: challenge,
-                state,
-              });
-              window.location.href = url;
-            } catch (e) {
-              console.error("Deriv OAuth init failed:", e);
-            }
+          onClick={() => {
+            window.location.href = buildDerivAuthUrl();
           }}
         >
-          Sign in with Deriv (OAuth)
+          {activeToken ? "Re-authorize with Deriv" : "Sign in with Deriv"}
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Redirects to Deriv to grant access. The redirect URL registered with
-          your Deriv app must be exactly{" "}
-          <code className="font-mono text-[10px]">{DERIV_REDIRECT_URI}</code>.
-          Sign-in only works from that URL.
+          Redirects to Deriv to grant access. After returning, both your Demo
+          and Real account tokens are saved automatically.
         </p>
       </div>
 
-
-      <Divider />
-      <SectionLabel>Manual Token (optional)</SectionLabel>
-      <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
-        <input
-          type="text"
-          value={accountType === "real" ? realToken : demoToken}
-          onChange={(e) => {
-            const v = sanitizeToken(e.target.value);
-            if (accountType === "real") setRealToken(v);
-            else setDemoToken(v);
-          }}
-          onPaste={(e) => {
-            e.preventDefault();
-            const v = sanitizeToken(e.clipboardData.getData("text") || "");
-            if (accountType === "real") setRealToken(v);
-            else setDemoToken(v);
-          }}
-          placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
-          className="input font-mono"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          name={`deriv-${accountType}-token`}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          className="btn-secondary inline-flex items-center justify-center gap-1.5"
-          onClick={saveToken}
-          disabled={savingToken || !activeToken}
-          title="Save manual token"
-        >
-          <Save className="h-3.5 w-3.5" />
-          Save
-        </button>
-        <button
-          className="btn-secondary"
-          onClick={connectWithSavedToken}
-          disabled={!activeToken || s?.connected || savingToken}
-        >
-          {s?.authorized ? "Connected" : s?.connected ? "Authorizing..." : "Connect"}
-        </button>
-      </div>
       {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
       {tokenLoaded && !tokenLoadError && !activeToken && (
         <div className="text-[11px] text-muted-foreground">
-          No saved {accountType} token yet — use OAuth above or paste one manually.
+          No {accountType} account linked yet — sign in with Deriv above.
         </div>
+      )}
+      {tokenLoaded && !tokenLoadError && activeToken && !s?.connected && (
+        <button
+          className="btn-secondary w-full"
+          onClick={() => connect()}
+          disabled={savingToken}
+        >
+          Connect
+        </button>
       )}
       {tokenLoadError && (
         <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">

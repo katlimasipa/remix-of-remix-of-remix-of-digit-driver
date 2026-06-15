@@ -1,17 +1,11 @@
-// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (1HZ100V).
-// Uses Deriv's new API (api.derivws.com/trading/v1/options/...) with OAuth 2.0:
-//   1. List trading accounts via REST (server function — keeps client_id off the client)
-//   2. Request a one-time WS URL for the chosen account (server function)
-//   3. Open the OTP-authenticated WebSocket — no `authorize` handshake needed
-//
-// Falls back to the legacy /websockets/v3 endpoint + `authorize` flow when the
-// user supplies a manual API token (no OAuth session yet).
+// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (R_100).
+// Uses the standard Deriv WebSocket endpoint with the `authorize` handshake.
+// Tokens come from Deriv's classic OAuth flow (oauth.deriv.com/oauth2/authorize)
+// — Deriv redirects back with one token per account; we store demo/real
+// separately and feed the active one in via `cfg.token`.
 
-import {
-  listDerivAccounts,
-  getDerivOtp,
-  createDerivAccount,
-} from "./derivApi.functions";
+import { DERIV_APP_ID } from "./derivOAuth.functions";
+
 
 export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even";
 
@@ -61,11 +55,8 @@ export type BotState = {
 
 type Listener = (s: BotState) => void;
 
-// New-API symbol name for Volatility 100 Index (1-second ticks).
-const SYMBOL_NEW = "1HZ100V";
-// Legacy-API symbol for the manual-token fallback.
-const SYMBOL_LEGACY = "R_100";
-const LEGACY_APP_ID = "1089";
+// Symbol for Volatility 100 Index.
+const SYMBOL = "R_100";
 
 function asFiniteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -137,76 +128,20 @@ export class DerivBot {
 
     this.patch({ error: null });
 
-    const manualTok = (this.cfg.token ?? "").trim();
-    // Deriv's new Personal Access Tokens start with `pat_` and only work on the
-    // new API (api.derivws.com/trading/v1/options) — route them through OAuth.
-    const manualIsPat = manualTok.toLowerCase().startsWith("pat_");
-
-    // Prefer OAuth (new API) when an access_token or pat_ token is present.
-    if (this.cfg.accessToken && this.cfg.accessToken.length > 10) {
-      this.mode = "oauth";
-      await this.connectOAuth();
-    } else if (manualIsPat) {
-      this.mode = "oauth";
-      // Reuse the OAuth path with the pat_ token as the bearer.
-      this.cfg = { ...this.cfg, accessToken: manualTok };
-      await this.connectOAuth();
-    } else if (manualTok.length > 0) {
-      this.mode = "legacy";
-      this.connectLegacy();
-    } else {
-      this.patch({ error: "No Deriv credentials — sign in or paste an API token" });
+    const token = (this.cfg.token ?? "").trim();
+    if (!token) {
+      this.patch({ error: "Not signed in — click Sign in with Deriv" });
+      return;
     }
+    this.mode = "legacy";
+    this.connectLegacy();
   }
 
-  private async connectOAuth() {
-    try {
-      const accounts = await listDerivAccounts({ access_token: this.cfg.accessToken });
 
-      let account = accounts.find((a) => a.account_type === this.cfg.accountType);
-      if (!account) {
-        account = await createDerivAccount({
-          access_token: this.cfg.accessToken,
-          account_type: this.cfg.accountType,
-        });
-      }
-      if (!account) {
-        this.patch({ error: `No ${this.cfg.accountType} account available on Deriv` });
-        return;
-      }
-
-      this.patch({
-        balance: asFiniteNumber(account.balance),
-        currency: account.currency || "USD",
-      });
-
-      const { url } = await getDerivOtp({
-        access_token: this.cfg.accessToken,
-        account_id: account.account_id,
-      });
-
-      const ws = new WebSocket(url);
-      this.ws = ws;
-      ws.onopen = () => {
-        // OTP-authenticated — no `authorize` needed.
-        this.patch({ connected: true, authorized: true, error: null });
-        this.send({ balance: 1, subscribe: 1 }).catch(() => {});
-        this.send({ ticks: SYMBOL_NEW, subscribe: 1 }).catch(() => {});
-      };
-      ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
-      ws.onclose = () => {
-        this.patch({ connected: false, authorized: false });
-        if (this.state.running) this.scheduleReconnect();
-      };
-      ws.onerror = () => this.patch({ error: "WebSocket error" });
-    } catch (e: any) {
-      this.patch({ error: e?.message || "Failed to connect via OAuth" });
-    }
-  }
 
   private connectLegacy() {
     const ws = new WebSocket(
-      `wss://ws.derivws.com/websockets/v3?app_id=${LEGACY_APP_ID}`,
+      `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`,
     );
     this.ws = ws;
     ws.onopen = () => {
@@ -268,7 +203,7 @@ export class DerivBot {
         error: null,
       });
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
-      this.send({ ticks: SYMBOL_LEGACY, subscribe: 1 }).catch(() => {});
+      this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
     }
 
     if (msg.msg_type === "balance" && msg.balance) {
@@ -402,12 +337,7 @@ export class DerivBot {
     this.streakDigit = null;
     this.cooldown = 2;
 
-    const symbol = this.mode === "oauth" ? SYMBOL_NEW : SYMBOL_LEGACY;
-    // New API uses `underlying_symbol`; legacy uses `symbol`.
-    const symbolField =
-      this.mode === "oauth"
-        ? { underlying_symbol: symbol }
-        : { symbol };
+    const symbolField = { symbol: SYMBOL };
 
     try {
       const proposal = await this.send({
