@@ -203,7 +203,7 @@ export class DerivBot {
         error: null,
       });
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
-      this.send({ ticks: SYMBOL_LEGACY, subscribe: 1 }).catch(() => {});
+      this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
     }
 
     if (msg.msg_type === "balance" && msg.balance) {
