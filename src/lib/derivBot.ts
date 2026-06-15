@@ -337,12 +337,7 @@ export class DerivBot {
     this.streakDigit = null;
     this.cooldown = 2;
 
-    const symbol = this.mode === "oauth" ? SYMBOL_NEW : SYMBOL_LEGACY;
-    // New API uses `underlying_symbol`; legacy uses `symbol`.
-    const symbolField =
-      this.mode === "oauth"
-        ? { underlying_symbol: symbol }
-        : { symbol };
+    const symbolField = { symbol: SYMBOL };
 
     try {
       const proposal = await this.send({
