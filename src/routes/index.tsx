@@ -664,82 +664,32 @@ function Dashboard() {
       <div className="space-y-2">
         <button
           className="btn-primary w-full"
-          onClick={async () => {
-            try {
-              const { verifier, challenge, state } = await generatePkce();
-              sessionStorage.setItem("deriv_pkce_verifier", verifier);
-              sessionStorage.setItem("deriv_oauth_state", state);
-              const url = buildDerivAuthUrl({
-                redirect_uri: DERIV_REDIRECT_URI,
-                code_challenge: challenge,
-                state,
-              });
-              window.location.href = url;
-            } catch (e) {
-              console.error("Deriv OAuth init failed:", e);
-            }
+          onClick={() => {
+            window.location.href = buildDerivAuthUrl();
           }}
         >
-          Sign in with Deriv (OAuth)
+          {activeToken ? "Re-authorize with Deriv" : "Sign in with Deriv"}
         </button>
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Redirects to Deriv to grant access. The redirect URL registered with
-          your Deriv app must be exactly{" "}
-          <code className="font-mono text-[10px]">{DERIV_REDIRECT_URI}</code>.
-          Sign-in only works from that URL.
+          Redirects to Deriv to grant access. After returning, both your Demo
+          and Real account tokens are saved automatically.
         </p>
       </div>
 
-
-      <Divider />
-      <SectionLabel>Manual Token (optional)</SectionLabel>
-      <Field label={`${accountType === "real" ? "Real" : "Demo"} API Token`}>
-        <input
-          type="text"
-          value={accountType === "real" ? realToken : demoToken}
-          onChange={(e) => {
-            const v = sanitizeToken(e.target.value);
-            if (accountType === "real") setRealToken(v);
-            else setDemoToken(v);
-          }}
-          onPaste={(e) => {
-            e.preventDefault();
-            const v = sanitizeToken(e.clipboardData.getData("text") || "");
-            if (accountType === "real") setRealToken(v);
-            else setDemoToken(v);
-          }}
-          placeholder={tokenLoaded ? `Paste ${accountType} API token` : "Loading…"}
-          className="input font-mono"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          name={`deriv-${accountType}-token`}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          className="btn-secondary inline-flex items-center justify-center gap-1.5"
-          onClick={saveToken}
-          disabled={savingToken || !activeToken}
-          title="Save manual token"
-        >
-          <Save className="h-3.5 w-3.5" />
-          Save
-        </button>
-        <button
-          className="btn-secondary"
-          onClick={connectWithSavedToken}
-          disabled={!activeToken || s?.connected || savingToken}
-        >
-          {s?.authorized ? "Connected" : s?.connected ? "Authorizing..." : "Connect"}
-        </button>
-      </div>
       {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
       {tokenLoaded && !tokenLoadError && !activeToken && (
         <div className="text-[11px] text-muted-foreground">
-          No saved {accountType} token yet — use OAuth above or paste one manually.
+          No {accountType} account linked yet — sign in with Deriv above.
         </div>
+      )}
+      {tokenLoaded && !tokenLoadError && activeToken && !s?.connected && (
+        <button
+          className="btn-secondary w-full"
+          onClick={() => connect()}
+          disabled={savingToken}
+        >
+          Connect
+        </button>
       )}
       {tokenLoadError && (
         <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
