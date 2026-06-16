@@ -15,14 +15,11 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 import type { BotState, TriggerMode } from "@/lib/derivBot";
 
-// Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize?app_id=...
-// Deriv redirects back to the URL registered with your app, appending
-// ?acct1=...&token1=...&cur1=... (one set per account on the user's profile).
 import {
   LogOut,
+  Save,
   Archive,
   Sun,
   Moon,
@@ -33,6 +30,7 @@ import {
   Bell,
   BellOff,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -162,12 +160,12 @@ function Dashboard() {
   const s = useMemo(() => normalizeBotState(state), [state]);
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [accountType, setAccountType] = useState<"demo" | "real">("demo");
-  const [demoToken, setDemoToken] = useState("");
-  const [realToken, setRealToken] = useState("");
+  const [token, setToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [tokenLoadError, setTokenLoadError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
   const [confirmReal, setConfirmReal] = useState(false);
   const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
   const [historyKey, setHistoryKey] = useState(0);
@@ -176,7 +174,6 @@ function Dashboard() {
   async function endAndSaveSession() {
     if (!user) return;
     if (!s || s.totalTrades === 0) {
-      // Just reset if nothing to save
       stop();
       reset();
       setSessionStart(Date.now());
@@ -184,14 +181,9 @@ function Dashboard() {
     }
     setSavingSession(true);
     stop();
-    // Determine actual account used: match the bot's active token against saved demo/real tokens.
-    const activeTok = (cfg.token ?? "").trim();
-    let actualType: "demo" | "real" = cfg.accountType ?? accountType;
-    if (activeTok && activeTok === realToken.trim()) actualType = "real";
-    else if (activeTok && activeTok === demoToken.trim()) actualType = "demo";
     const { error } = await supabase.from("trading_sessions").insert({
       user_id: user.id,
-      account_type: actualType,
+      account_type: accountType,
       pnl: Number(s.pnl.toFixed(4)),
       wins: s.wins,
       losses: s.losses,
@@ -210,27 +202,45 @@ function Dashboard() {
     }
   }
 
-  const activeToken = accountType === "real" ? realToken : demoToken;
-
-  // Keep the bot's config in sync with the currently-typed token so users
-  // don't have to click "Save" before "Connect".
+  // Keep the bot's config in sync with the typed token + selected account.
   useEffect(() => {
-    setCfg((c) => (c.token === activeToken ? c : { ...c, token: activeToken }));
+    setCfg((c) =>
+      c.token === token && c.accountType === accountType
+        ? c
+        : { ...c, token, accountType },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeToken]);
+  }, [token, accountType]);
 
-  // Auto-connect once tokens have loaded and a saved token exists.
+  // Auto-connect once a saved token has loaded.
   const autoConnectedRef = useRef(false);
   useEffect(() => {
     if (!tokenLoaded) return;
     if (autoConnectedRef.current) return;
-    if (!activeToken) return;
+    if (!token) return;
     if (s?.connected || s?.authorized) return;
     autoConnectedRef.current = true;
-    // Defer to allow cfg sync effect above to run first.
     setTimeout(() => connect(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenLoaded, activeToken]);
+  }, [tokenLoaded, token]);
+
+  async function saveToken() {
+    if (!user) return;
+    setSavingToken(true);
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email ?? null,
+      deriv_token: token.trim(),
+      account_type: accountType,
+    });
+    setSavingToken(false);
+    if (error) {
+      setTokenLoadError(error.message);
+    } else {
+      setSavedMsg("Saved");
+      setTimeout(() => setSavedMsg(null), 2000);
+    }
+  }
 
   // ---------- Trade notifications (Web Push -> all of this user's devices) ----------
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
@@ -393,21 +403,8 @@ function Dashboard() {
     if (!user) {
       setTokenLoaded(false);
       setTokenLoadError(null);
-      setDemoToken("");
-      setRealToken("");
+      setToken("");
       return;
-    }
-
-    // Deriv OAuth returns one or more accounts as acct1/token1/cur1,
-    // acct2/token2/cur2, ... so we capture both Demo (VRTC*) and Real
-    // tokens in a single round-trip.
-    const params = new URLSearchParams(window.location.search);
-    const oauthAccounts: { acct: string; token: string }[] = [];
-    for (let i = 1; i < 20; i++) {
-      const acct = params.get(`acct${i}`);
-      const token = params.get(`token${i}`);
-      if (!acct || !token) break;
-      oauthAccounts.push({ acct, token });
     }
 
     let cancelled = false;
@@ -415,76 +412,27 @@ function Dashboard() {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      if (oauthAccounts.length > 0) {
-        let demoTok = "";
-        let realTok = "";
-        for (const a of oauthAccounts) {
-          if (a.acct.startsWith("VRTC")) demoTok = a.token;
-          else realTok = a.token;
-        }
-        const preferred: "demo" | "real" = realTok ? "real" : "demo";
-        if (demoTok) setDemoToken(demoTok);
-        if (realTok) setRealToken(realTok);
-        setAccountType(preferred);
-
-        const patch: Record<string, string> = { account_type: preferred };
-        if (demoTok) patch.deriv_token_demo = demoTok;
-        if (realTok) patch.deriv_token_real = realTok;
-
-        const { error: upsertErr } = await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email ?? null,
-          ...patch,
-        });
-        if (upsertErr) console.error("OAuth token save failed:", upsertErr);
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-        setSavedMsg(
-          `Connected ${oauthAccounts.length} Deriv account${oauthAccounts.length > 1 ? "s" : ""} via OAuth`,
-        );
-        setTimeout(() => setSavedMsg(null), 3000);
-      }
-
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "email, deriv_token, deriv_token_demo, deriv_token_real, account_type, deriv_oauth_token, deriv_oauth_expires_at",
-        )
+        .select("email, deriv_token, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
       if (error) {
         console.error("Profile token load failed:", error);
-        setDemoToken("");
-        setRealToken("");
+        setToken("");
         setTokenLoadError("Saved token could not be loaded. Please try signing out and back in.");
         setTokenLoaded(true);
         return;
       }
-      const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
-      const rt = data?.deriv_token_real ?? "";
+      const tok = data?.deriv_token ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
 
-      // Only use the OAuth token if it hasn't expired.
-      const oauthExp = data?.deriv_oauth_expires_at
-        ? new Date(data.deriv_oauth_expires_at).getTime()
-        : 0;
-      const oauthValid = oauthExp > Date.now() + 10_000;
-      const oauthTok = oauthValid ? (data?.deriv_oauth_token ?? "") : "";
-
-      setDemoToken(dt);
-      setRealToken(rt);
+      setToken(tok);
       setAccountType(at);
-      setCfg((c) => ({
-        ...c,
-        token: at === "real" ? rt : dt,
-        accessToken: oauthTok,
-        accountType: at,
-      }));
+      setCfg((c) => ({ ...c, token: tok, accountType: at }));
       setTokenLoaded(true);
 
-
-      // Older accounts may not have a profile row yet; create one scoped to this user.
       if (!data) {
         const { error: createError } = await supabase.from("profiles").upsert({
           id: user.id,
@@ -505,7 +453,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // When user switches account type, swap active token & disconnect any active session
+  // When user switches account type, disconnect any active session.
   function switchAccount(next: "demo" | "real") {
     if (next === accountType) return;
     if (next === "real" && !confirmReal) {
@@ -515,12 +463,13 @@ function Dashboard() {
     setAccountType(next);
     setConfirmReal(false);
     disconnect();
-    const tok = next === "real" ? realToken : demoToken;
-    setCfg({ ...cfg, token: tok, accountType: next });
+    autoConnectedRef.current = false;
+    setCfg({ ...cfg, token, accountType: next });
     if (user) {
       supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
     }
   }
+
 
 
 
@@ -551,33 +500,24 @@ function Dashboard() {
     <section className="bg-background p-4 sm:p-5 space-y-5">
       <SectionLabel>Connection</SectionLabel>
 
-      {/* Account type toggle */}
-      <div className="space-y-2">
+      {/* Account selector */}
+      <div className="space-y-1.5">
         <span className="text-[11px] text-muted-foreground">Account</span>
-        <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
-          {(["demo", "real"] as const).map((m) => {
-            const active = accountType === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => switchAccount(m)}
-                className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
-                  active
-                    ? m === "real"
-                      ? "bg-bear text-white"
-                      : "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "demo" ? "Demo" : "Real"}
-              </button>
-            );
-          })}
-        </div>
-        {accountType === "real" && !s?.authorized && (
+        <Select
+          value={accountType}
+          onValueChange={(v: string) => switchAccount(v as "demo" | "real")}
+        >
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder="Select account" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="demo">Demo</SelectItem>
+            <SelectItem value="real">Real</SelectItem>
+          </SelectContent>
+        </Select>
+        {accountType === "real" && (
           <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-            Live trading uses real funds. Trade at your own risk.
+            Live trading uses real funds. Make sure the API token below belongs to your Real account.
           </div>
         )}
         {confirmReal && accountType === "demo" && (
@@ -603,41 +543,50 @@ function Dashboard() {
         )}
       </div>
 
-      <div className="space-y-2">
-        <button
-          className="btn-primary w-full"
-          onClick={() => {
-            window.location.href = buildDerivAuthUrl();
-          }}
-        >
-          {activeToken ? "Re-authorize with Deriv" : "Sign in with Deriv"}
-        </button>
+      {/* API token */}
+      <div className="space-y-1.5">
+        <span className="text-[11px] text-muted-foreground">Deriv API Token</span>
+        <input
+          type="password"
+          className="input"
+          placeholder="Paste your Deriv API token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Redirects to Deriv to grant access. After returning, both your Demo
-          and Real account tokens are saved automatically.
+          Create one at app.deriv.com → Settings → API token (Read + Trade scopes).
         </p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className="btn-secondary inline-flex items-center justify-center gap-1.5"
+            onClick={saveToken}
+            disabled={savingToken || !token.trim()}
+          >
+            <Save className="h-3.5 w-3.5" />
+            {savingToken ? "Saving…" : "Save"}
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              autoConnectedRef.current = false;
+              connect();
+            }}
+            disabled={!token.trim() || s?.connected}
+          >
+            {s?.connected ? "Connected" : "Connect"}
+          </button>
+        </div>
+        {savedMsg && <div className="text-[11px] text-bull">{savedMsg}</div>}
+        {tokenLoadError && (
+          <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+            {tokenLoadError}
+          </div>
+        )}
       </div>
 
-      {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
-      {tokenLoaded && !tokenLoadError && !activeToken && (
-        <div className="text-[11px] text-muted-foreground">
-          No {accountType} account linked yet — sign in with Deriv above.
-        </div>
-      )}
-      {tokenLoaded && !tokenLoadError && activeToken && !s?.connected && (
-        <button
-          className="btn-secondary w-full"
-          onClick={() => connect()}
-          disabled={savingToken}
-        >
-          Connect
-        </button>
-      )}
-      {tokenLoadError && (
-        <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-          {tokenLoadError}
-        </div>
-      )}
+
 
       <Divider />
       <SectionLabel>Strategy</SectionLabel>
