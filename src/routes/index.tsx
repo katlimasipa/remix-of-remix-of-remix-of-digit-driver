@@ -174,7 +174,6 @@ function Dashboard() {
   async function endAndSaveSession() {
     if (!user) return;
     if (!s || s.totalTrades === 0) {
-      // Just reset if nothing to save
       stop();
       reset();
       setSessionStart(Date.now());
@@ -182,14 +181,9 @@ function Dashboard() {
     }
     setSavingSession(true);
     stop();
-    // Determine actual account used: match the bot's active token against saved demo/real tokens.
-    const activeTok = (cfg.token ?? "").trim();
-    let actualType: "demo" | "real" = cfg.accountType ?? accountType;
-    if (activeTok && activeTok === realToken.trim()) actualType = "real";
-    else if (activeTok && activeTok === demoToken.trim()) actualType = "demo";
     const { error } = await supabase.from("trading_sessions").insert({
       user_id: user.id,
-      account_type: actualType,
+      account_type: accountType,
       pnl: Number(s.pnl.toFixed(4)),
       wins: s.wins,
       losses: s.losses,
@@ -208,27 +202,45 @@ function Dashboard() {
     }
   }
 
-  const activeToken = accountType === "real" ? realToken : demoToken;
-
-  // Keep the bot's config in sync with the currently-typed token so users
-  // don't have to click "Save" before "Connect".
+  // Keep the bot's config in sync with the typed token + selected account.
   useEffect(() => {
-    setCfg((c) => (c.token === activeToken ? c : { ...c, token: activeToken }));
+    setCfg((c) =>
+      c.token === token && c.accountType === accountType
+        ? c
+        : { ...c, token, accountType },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeToken]);
+  }, [token, accountType]);
 
-  // Auto-connect once tokens have loaded and a saved token exists.
+  // Auto-connect once a saved token has loaded.
   const autoConnectedRef = useRef(false);
   useEffect(() => {
     if (!tokenLoaded) return;
     if (autoConnectedRef.current) return;
-    if (!activeToken) return;
+    if (!token) return;
     if (s?.connected || s?.authorized) return;
     autoConnectedRef.current = true;
-    // Defer to allow cfg sync effect above to run first.
     setTimeout(() => connect(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenLoaded, activeToken]);
+  }, [tokenLoaded, token]);
+
+  async function saveToken() {
+    if (!user) return;
+    setSavingToken(true);
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email ?? null,
+      deriv_token: token.trim(),
+      account_type: accountType,
+    });
+    setSavingToken(false);
+    if (error) {
+      setTokenLoadError(error.message);
+    } else {
+      setSavedMsg("Saved");
+      setTimeout(() => setSavedMsg(null), 2000);
+    }
+  }
 
   // ---------- Trade notifications (Web Push -> all of this user's devices) ----------
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
