@@ -15,14 +15,11 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { buildDerivAuthUrl } from "@/lib/derivOAuth.functions";
 import type { BotState, TriggerMode } from "@/lib/derivBot";
 
-// Deriv classic OAuth flow: redirect to oauth.deriv.com/oauth2/authorize?app_id=...
-// Deriv redirects back to the URL registered with your app, appending
-// ?acct1=...&token1=...&cur1=... (one set per account on the user's profile).
 import {
   LogOut,
+  Save,
   Archive,
   Sun,
   Moon,
@@ -33,6 +30,7 @@ import {
   Bell,
   BellOff,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
