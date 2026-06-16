@@ -403,21 +403,8 @@ function Dashboard() {
     if (!user) {
       setTokenLoaded(false);
       setTokenLoadError(null);
-      setDemoToken("");
-      setRealToken("");
+      setToken("");
       return;
-    }
-
-    // Deriv OAuth returns one or more accounts as acct1/token1/cur1,
-    // acct2/token2/cur2, ... so we capture both Demo (VRTC*) and Real
-    // tokens in a single round-trip.
-    const params = new URLSearchParams(window.location.search);
-    const oauthAccounts: { acct: string; token: string }[] = [];
-    for (let i = 1; i < 20; i++) {
-      const acct = params.get(`acct${i}`);
-      const token = params.get(`token${i}`);
-      if (!acct || !token) break;
-      oauthAccounts.push({ acct, token });
     }
 
     let cancelled = false;
@@ -425,76 +412,27 @@ function Dashboard() {
       setTokenLoaded(false);
       setTokenLoadError(null);
 
-      if (oauthAccounts.length > 0) {
-        let demoTok = "";
-        let realTok = "";
-        for (const a of oauthAccounts) {
-          if (a.acct.startsWith("VRTC")) demoTok = a.token;
-          else realTok = a.token;
-        }
-        const preferred: "demo" | "real" = realTok ? "real" : "demo";
-        if (demoTok) setDemoToken(demoTok);
-        if (realTok) setRealToken(realTok);
-        setAccountType(preferred);
-
-        const patch: Record<string, string> = { account_type: preferred };
-        if (demoTok) patch.deriv_token_demo = demoTok;
-        if (realTok) patch.deriv_token_real = realTok;
-
-        const { error: upsertErr } = await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email ?? null,
-          ...patch,
-        });
-        if (upsertErr) console.error("OAuth token save failed:", upsertErr);
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-        setSavedMsg(
-          `Connected ${oauthAccounts.length} Deriv account${oauthAccounts.length > 1 ? "s" : ""} via OAuth`,
-        );
-        setTimeout(() => setSavedMsg(null), 3000);
-      }
-
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "email, deriv_token, deriv_token_demo, deriv_token_real, account_type, deriv_oauth_token, deriv_oauth_expires_at",
-        )
+        .select("email, deriv_token, account_type")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
       if (error) {
         console.error("Profile token load failed:", error);
-        setDemoToken("");
-        setRealToken("");
+        setToken("");
         setTokenLoadError("Saved token could not be loaded. Please try signing out and back in.");
         setTokenLoaded(true);
         return;
       }
-      const dt = data?.deriv_token_demo ?? data?.deriv_token ?? "";
-      const rt = data?.deriv_token_real ?? "";
+      const tok = data?.deriv_token ?? "";
       const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
 
-      // Only use the OAuth token if it hasn't expired.
-      const oauthExp = data?.deriv_oauth_expires_at
-        ? new Date(data.deriv_oauth_expires_at).getTime()
-        : 0;
-      const oauthValid = oauthExp > Date.now() + 10_000;
-      const oauthTok = oauthValid ? (data?.deriv_oauth_token ?? "") : "";
-
-      setDemoToken(dt);
-      setRealToken(rt);
+      setToken(tok);
       setAccountType(at);
-      setCfg((c) => ({
-        ...c,
-        token: at === "real" ? rt : dt,
-        accessToken: oauthTok,
-        accountType: at,
-      }));
+      setCfg((c) => ({ ...c, token: tok, accountType: at }));
       setTokenLoaded(true);
 
-
-      // Older accounts may not have a profile row yet; create one scoped to this user.
       if (!data) {
         const { error: createError } = await supabase.from("profiles").upsert({
           id: user.id,
@@ -515,7 +453,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // When user switches account type, swap active token & disconnect any active session
+  // When user switches account type, disconnect any active session.
   function switchAccount(next: "demo" | "real") {
     if (next === accountType) return;
     if (next === "real" && !confirmReal) {
@@ -525,12 +463,13 @@ function Dashboard() {
     setAccountType(next);
     setConfirmReal(false);
     disconnect();
-    const tok = next === "real" ? realToken : demoToken;
-    setCfg({ ...cfg, token: tok, accountType: next });
+    autoConnectedRef.current = false;
+    setCfg({ ...cfg, token, accountType: next });
     if (user) {
       supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
     }
   }
+
 
 
 
