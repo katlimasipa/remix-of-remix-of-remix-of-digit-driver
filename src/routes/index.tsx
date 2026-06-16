@@ -500,33 +500,24 @@ function Dashboard() {
     <section className="bg-background p-4 sm:p-5 space-y-5">
       <SectionLabel>Connection</SectionLabel>
 
-      {/* Account type toggle */}
-      <div className="space-y-2">
+      {/* Account selector */}
+      <div className="space-y-1.5">
         <span className="text-[11px] text-muted-foreground">Account</span>
-        <div className="flex gap-1 rounded-md bg-surface-2 p-1 text-xs">
-          {(["demo", "real"] as const).map((m) => {
-            const active = accountType === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => switchAccount(m)}
-                className={`flex-1 rounded px-3 py-1.5 font-medium transition-all ${
-                  active
-                    ? m === "real"
-                      ? "bg-bear text-white"
-                      : "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "demo" ? "Demo" : "Real"}
-              </button>
-            );
-          })}
-        </div>
-        {accountType === "real" && !s?.authorized && (
+        <Select
+          value={accountType}
+          onValueChange={(v: string) => switchAccount(v as "demo" | "real")}
+        >
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder="Select account" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="demo">Demo</SelectItem>
+            <SelectItem value="real">Real</SelectItem>
+          </SelectContent>
+        </Select>
+        {accountType === "real" && (
           <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-            Live trading uses real funds. Trade at your own risk.
+            Live trading uses real funds. Make sure the API token below belongs to your Real account.
           </div>
         )}
         {confirmReal && accountType === "demo" && (
@@ -552,41 +543,50 @@ function Dashboard() {
         )}
       </div>
 
-      <div className="space-y-2">
-        <button
-          className="btn-primary w-full"
-          onClick={() => {
-            window.location.href = buildDerivAuthUrl();
-          }}
-        >
-          {activeToken ? "Re-authorize with Deriv" : "Sign in with Deriv"}
-        </button>
+      {/* API token */}
+      <div className="space-y-1.5">
+        <span className="text-[11px] text-muted-foreground">Deriv API Token</span>
+        <input
+          type="password"
+          className="input"
+          placeholder="Paste your Deriv API token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Redirects to Deriv to grant access. After returning, both your Demo
-          and Real account tokens are saved automatically.
+          Create one at app.deriv.com → Settings → API token (Read + Trade scopes).
         </p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className="btn-secondary inline-flex items-center justify-center gap-1.5"
+            onClick={saveToken}
+            disabled={savingToken || !token.trim()}
+          >
+            <Save className="h-3.5 w-3.5" />
+            {savingToken ? "Saving…" : "Save"}
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              autoConnectedRef.current = false;
+              connect();
+            }}
+            disabled={!token.trim() || s?.connected}
+          >
+            {s?.connected ? "Connected" : "Connect"}
+          </button>
+        </div>
+        {savedMsg && <div className="text-[11px] text-bull">{savedMsg}</div>}
+        {tokenLoadError && (
+          <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
+            {tokenLoadError}
+          </div>
+        )}
       </div>
 
-      {savedMsg && <div className="text-[11px] text-muted-foreground">{savedMsg}</div>}
-      {tokenLoaded && !tokenLoadError && !activeToken && (
-        <div className="text-[11px] text-muted-foreground">
-          No {accountType} account linked yet — sign in with Deriv above.
-        </div>
-      )}
-      {tokenLoaded && !tokenLoadError && activeToken && !s?.connected && (
-        <button
-          className="btn-secondary w-full"
-          onClick={() => connect()}
-          disabled={savingToken}
-        >
-          Connect
-        </button>
-      )}
-      {tokenLoadError && (
-        <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-          {tokenLoadError}
-        </div>
-      )}
+
 
       <Divider />
       <SectionLabel>Strategy</SectionLabel>
