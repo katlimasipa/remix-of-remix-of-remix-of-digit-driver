@@ -160,12 +160,12 @@ function Dashboard() {
   const s = useMemo(() => normalizeBotState(state), [state]);
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [accountType, setAccountType] = useState<"demo" | "real">("demo");
-  const [demoToken, setDemoToken] = useState("");
-  const [realToken, setRealToken] = useState("");
+  const [token, setToken] = useState("");
   const [savingToken, setSavingToken] = useState(false);
   const [tokenLoaded, setTokenLoaded] = useState(false);
   const [tokenLoadError, setTokenLoadError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
   const [confirmReal, setConfirmReal] = useState(false);
   const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
   const [historyKey, setHistoryKey] = useState(0);
