@@ -141,7 +141,7 @@ export class DerivBot {
 
   private connectLegacy() {
     const ws = new WebSocket(
-      `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`,
+      `wss://ws.derivws.com/websockets/v3?app_id=1089`,
     );
     this.ws = ws;
     ws.onopen = () => {

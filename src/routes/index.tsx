@@ -556,7 +556,7 @@ function Dashboard() {
           spellCheck={false}
         />
         <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Create one at app.deriv.com → Settings → API token (Read + Trade scopes).
+          Create one at app.deriv.com → Settings → API token (Trade scope).
         </p>
         <div className="grid grid-cols-2 gap-2">
           <button
