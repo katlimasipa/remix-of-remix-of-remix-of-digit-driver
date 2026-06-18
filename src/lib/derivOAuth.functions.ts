@@ -5,7 +5,7 @@
 // The token1 value is a regular Deriv API token that works with the
 // legacy WebSocket `authorize` call — no PKCE / token exchange required.
 
-export const DERIV_APP_ID = "33xUxNUY0Lcxf2cTguGuL";
+export const DERIV_APP_ID = "33AujkUR3j91ob3aEpKGt";
 const AUTH_ENDPOINT = "https://oauth.deriv.com/oauth2/authorize";
 
 export function buildDerivAuthUrl(): string {

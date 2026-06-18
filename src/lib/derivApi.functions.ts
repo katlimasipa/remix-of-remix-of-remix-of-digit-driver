@@ -1,5 +1,5 @@
 // Client-side helpers for Deriv REST API.
-const DERIV_CLIENT_ID = "33vntL6DjBvmbEkm9DseX";
+const DERIV_CLIENT_ID = "33AujkUR3j91ob3aEpKGt";
 const REST_BASE = "https://api.derivws.com";
 
 export type DerivAccount = {
