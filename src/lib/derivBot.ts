@@ -138,7 +138,7 @@ export class DerivBot {
     // Use the standard v3 WebSocket (supports full schema including `symbol`)
     // and authorize with the PAT token via the `authorize` message.
     const ws = new WebSocket(
-      `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`,
+      `wss://ws.derivws.com/websockets/v3?app_id=1089`,
     );
     this.ws = ws;
     ws.onopen = () => {
