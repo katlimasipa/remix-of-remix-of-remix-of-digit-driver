@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { BotState, TriggerMode } from "@/lib/derivBot";
+import { createDerivAccount } from "@/lib/derivApi.functions";
 
 import {
   LogOut,
@@ -225,9 +226,16 @@ function Dashboard() {
   }, [tokenLoaded, token]);
 
   async function saveToken() {
-    if (!user) return;
-    setSavingToken(true);
-    const { error } = await supabase.from("profiles").upsert({
+      if (!user) return;
+      setSavingToken(true);
+      try {
+        if (token.trim()) {
+          await createDerivAccount({ access_token: token.trim(), account_type: accountType });
+        }
+      } catch (err) {
+        console.warn("Failed to provision account via API:", err);
+      }
+      const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email ?? null,
       deriv_token: token.trim(),
