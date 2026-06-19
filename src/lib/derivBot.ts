@@ -1,7 +1,7 @@
-// Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100 (R_100).
+﻿// Browser-side Deriv WebSocket bot â€” Digits Differ on Volatility 100 (R_100).
 // Uses the standard Deriv WebSocket endpoint with the `authorize` handshake.
 // Tokens come from Deriv's classic OAuth flow (oauth.deriv.com/oauth2/authorize)
-// — Deriv redirects back with one token per account; we store demo/real
+// â€” Deriv redirects back with one token per account; we store demo/real
 // separately and feed the active one in via `cfg.token`.
 
 import { DERIV_APP_ID } from "./derivOAuth.functions";
@@ -131,14 +131,14 @@ export class DerivBot {
 
     const token = (this.cfg.token ?? "").trim();
     if (!token) {
-      this.patch({ error: "Not signed in — click Sign in with Deriv" });
+      this.patch({ error: "Not signed in â€” click Sign in with Deriv" });
       return;
     }
 
     // Use the standard v3 WebSocket (supports full schema including `symbol`)
     // and authorize with the PAT token via the `authorize` message.
     const ws = new WebSocket(
-      `wss://ws.derivws.com/websockets/v3?app_id=1089`,
+      `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`,
     );
     this.ws = ws;
     ws.onopen = () => {
@@ -187,7 +187,7 @@ export class DerivBot {
     }
 
     if (msg.msg_type === "authorize") {
-      // Only the legacy flow sees this — OAuth WS opens already authorized.
+      // Only the legacy flow sees this â€” OAuth WS opens already authorized.
       if (msg.error) {
         this.patch({ error: msg.error.message, authorized: false });
         return;
@@ -396,7 +396,7 @@ export class DerivBot {
         if (this.state.pendingTrade) {
           this.patch({
             pendingTrade: false,
-            error: "Contract settlement timeout — released lock",
+            error: "Contract settlement timeout â€” released lock",
           });
         }
         return;
