@@ -1,5 +1,4 @@
 ﻿// Client-side helpers for Deriv REST API.
-import { DERIV_APP_ID } from "./derivOAuth.functions";
 const REST_BASE = "https://api.derivws.com";
 
 export type DerivAccount = {
@@ -12,7 +11,7 @@ export type DerivAccount = {
 function headers(token: string) {
   return {
     Authorization: `Bearer ${token}`,
-    "Deriv-App-ID": DERIV_APP_ID,
+    "Deriv-App-ID": "1089",
   } as Record<string, string>;
 }
 
