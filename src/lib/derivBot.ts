@@ -5,6 +5,7 @@
 // separately and feed the active one in via `cfg.token`.
 
 import { DERIV_APP_ID } from "./derivOAuth.functions";
+import { listDerivAccounts, createDerivAccount, getDerivOtp } from "./derivApi.functions";
 
 
 export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even";
@@ -133,27 +134,49 @@ export class DerivBot {
       this.patch({ error: "Not signed in — click Sign in with Deriv" });
       return;
     }
-    this.mode = "legacy";
-    this.connectLegacy();
-  }
+    
+    try {
+      let accounts = await listDerivAccounts({ access_token: token });
+      let account = accounts.find((a: any) => a.account_type === this.cfg.accountType);
 
+      if (!account) {
+        account = await createDerivAccount({
+          access_token: token,
+          account_type: this.cfg.accountType,
+        });
+      }
 
+      const { url } = await getDerivOtp({
+        access_token: token,
+        account_id: account.account_id,
+      });
 
-  private connectLegacy() {
-    const ws = new WebSocket(
-      `wss://ws.derivws.com/websockets/v3?app_id=1089`,
-    );
-    this.ws = ws;
-    ws.onopen = () => {
-      this.patch({ connected: true });
-      this.send({ authorize: this.cfg.token.trim() });
-    };
-    ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
-    ws.onclose = () => {
-      this.patch({ connected: false, authorized: false });
-      if (this.state.running) this.scheduleReconnect();
-    };
-    ws.onerror = () => this.patch({ error: "WebSocket error" });
+      const ws = new WebSocket(url);
+      this.ws = ws;
+      
+      ws.onopen = () => {
+        this.patch({ 
+          connected: true, 
+          authorized: true, 
+          balance: account.balance, 
+          currency: account.currency 
+        });
+        this.send({ balance: 1, subscribe: 1 }).catch(() => {});
+        this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
+      };
+      
+      ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
+      
+      ws.onclose = () => {
+        this.patch({ connected: false, authorized: false });
+        if (this.state.running) this.scheduleReconnect();
+      };
+      
+      ws.onerror = () => this.patch({ error: "WebSocket error" });
+      
+    } catch (e: any) {
+      this.patch({ error: e.message || "Failed to connect via PAT", connected: false });
+    }
   }
 
   private scheduleReconnect() {
