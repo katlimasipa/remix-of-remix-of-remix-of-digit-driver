@@ -312,7 +312,7 @@ function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
             <Panel
               title="Last Digit"
-              hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}
+              hint={`${cfg.symbol === "1HZ100V" ? "Volatility 100 Index" : cfg.symbol}`}
             >
               <div className="flex items-end justify-between gap-6">
                 <div
@@ -508,7 +508,7 @@ function Dashboard() {
             }
             v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`}
           />
-          <Row k="Symbol" v="R_100" />
+          <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
 
         </section>

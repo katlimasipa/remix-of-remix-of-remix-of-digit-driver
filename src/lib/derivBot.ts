@@ -52,7 +52,7 @@ export type BotEvent =
 type Listener = (s: BotState) => void;
 type EventListener = (e: BotEvent) => void;
 
-const SYMBOL = "R_100";
+const SYMBOL = "1HZ100V";
 
 function asFiniteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -334,7 +334,7 @@ export class DerivBot {
         currency: this.state.currency || "USD",
         duration: 1,
         duration_unit: "t",
-        symbol: SYMBOL,
+        underlying_symbol: SYMBOL,
         barrier: String(barrierDigit),
       });
       if (proposal.error) throw new Error(proposal.error.message);
