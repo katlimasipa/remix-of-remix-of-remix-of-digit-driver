@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
+import pg from "pg";
 
 const VAPID_PUBLIC =
   process.env.VAPID_PUBLIC_KEY ??
@@ -28,6 +29,44 @@ function configureWebPush() {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 }
 
+const SETUP_SQL = `
+CREATE TABLE IF NOT EXISTS public.push_devices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_key text NOT NULL,
+  endpoint text NOT NULL UNIQUE,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  user_agent text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS push_devices_owner_idx ON public.push_devices(owner_key);
+GRANT ALL ON public.push_devices TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_devices TO anon, authenticated;
+ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'push_devices' AND policyname = 'push_devices_api_access'
+  ) THEN
+    CREATE POLICY push_devices_api_access ON public.push_devices FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+`;
+
+async function ensurePushDevicesTable(): Promise<boolean> {
+  const databaseUrl = process.env.DATABASE_URL ?? process.env.SUPABASE_DB_URL;
+  if (!databaseUrl) return false;
+  const client = new pg.Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+  try {
+    await client.connect();
+    await client.query(SETUP_SQL);
+    return true;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
 
@@ -50,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Missing subscription fields" });
       }
       const supabase = getAdmin();
-      const { error } = await supabase.from("push_devices").upsert(
+      let { error } = await supabase.from("push_devices").upsert(
         {
           owner_key: String(ownerKey).slice(0, 500),
           endpoint: String(endpoint).slice(0, 2000),
@@ -60,6 +99,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         { onConflict: "endpoint" },
       );
+      if (error?.message?.includes("push_devices")) {
+        const created = await ensurePushDevicesTable();
+        if (created) {
+          ({ error } = await supabase.from("push_devices").upsert(
+            {
+              owner_key: String(ownerKey).slice(0, 500),
+              endpoint: String(endpoint).slice(0, 2000),
+              p256dh: String(p256dh).slice(0, 500),
+              auth: String(auth).slice(0, 500),
+              user_agent: userAgent ? String(userAgent).slice(0, 500) : null,
+            },
+            { onConflict: "endpoint" },
+          ));
+        }
+      }
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json({ ok: true });
     }

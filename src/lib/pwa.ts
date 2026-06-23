@@ -72,6 +72,10 @@ export async function unsubscribePush(reg: ServiceWorkerRegistration): Promise<v
   if (sub) await sub.unsubscribe();
 }
 
+export function pushRequiresInstall(): boolean {
+  return isIos() && !isStandalone();
+}
+
 export function notificationsSupported(): boolean {
   return (
     typeof window !== "undefined" &&

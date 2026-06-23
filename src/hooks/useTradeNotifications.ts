@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BotState } from "@/lib/derivBot";
 import type { DerivAccount } from "@deriv/core";
-import { notificationsSupported } from "@/lib/pwa";
+import { notificationsSupported, pushRequiresInstall } from "@/lib/pwa";
 import {
   ensurePushSubscription,
   getNotificationOwnerKey,
@@ -46,6 +46,12 @@ export function useTradeNotifications(
 
   const enable = useCallback(async () => {
     if (!supported) return false;
+    if (pushRequiresInstall()) {
+      window.alert(
+        "On iPhone/iPad, install SmrtTrdr to your Home Screen first, then enable notifications from the installed app.",
+      );
+      return false;
+    }
     const perm = await Notification.requestPermission();
     setPermission(perm);
     if (perm !== "granted" || !ownerKey) return perm === "granted";
@@ -56,11 +62,15 @@ export function useTradeNotifications(
         body: "You'll get trade alerts on every signed-in device.",
         tag: "enabled",
       });
-      return true;
     } catch (e) {
       console.warn("Push subscription failed", e);
-      return perm === "granted";
+      await showLocalNotification({
+        title: "Notifications enabled on this device",
+        body: "Cross-device sync will work once push storage is configured.",
+        tag: "enabled-local",
+      });
     }
+    return true;
   }, [supported, ownerKey, notifyAllDevices]);
 
   // Re-register this device when permission is already granted (new browser / after update).

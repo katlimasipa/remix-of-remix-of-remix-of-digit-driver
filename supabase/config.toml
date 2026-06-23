@@ -1,0 +1,8 @@
+project_id = "zhbyhfhrvmiapnqmxlfp"
+
+[api]
+enabled = true
+
+[db]
+port = 5432
+major_version = 15
