@@ -1,37 +1,11 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
+import { useDerivAuth } from "@/hooks/useDerivAuth";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
-import { SessionHistory } from "@/components/SessionHistory";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import type { BotState, TriggerMode } from "@/lib/derivBot";
-import { createDerivAccount } from "@/lib/derivApi.functions";
-
-import {
-  LogOut,
-  Save,
-  Archive,
-  Sun,
-  Moon,
-  Settings,
-  Activity,
-  BarChart3,
-  History,
-  Bell,
-  BellOff,
-} from "lucide-react";
-
+import { LogOut, Settings2, Activity, BarChart3 } from "lucide-react";
+import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,82 +27,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Dashboard,
 });
-
-
-
-function finiteNumber(value: unknown, fallback = 0): number {
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function nullableFiniteNumber(value: unknown): number | null {
-  if (value == null) return null;
-  const n = finiteNumber(value, NaN);
-  return Number.isFinite(n) ? n : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-const EMPTY_BOT_STATE: BotState = {
-  connected: false,
-  running: false,
-  authorized: false,
-  balance: null,
-  currency: "USD",
-  lastDigit: null,
-  lastPrice: null,
-  streak: 0,
-  ticks: [],
-  trades: [],
-  pnl: 0,
-  wins: 0,
-  losses: 0,
-  totalTrades: 0,
-  error: null,
-  pendingTrade: false,
-};
-
-function normalizeBotState(raw: BotState | null): BotState {
-  const source = raw ?? EMPTY_BOT_STATE;
-  return {
-    ...source,
-    balance: nullableFiniteNumber(source.balance),
-    lastPrice: nullableFiniteNumber(source.lastPrice),
-    streak: finiteNumber(source.streak),
-    pnl: finiteNumber(source.pnl),
-    wins: finiteNumber(source.wins),
-    losses: finiteNumber(source.losses),
-    totalTrades: finiteNumber(source.totalTrades),
-    currency: source.currency || "USD",
-    ticks: Array.isArray(source.ticks)
-      ? source.ticks.map((tick) => {
-          const t = asRecord(tick);
-          return {
-            price: finiteNumber(t.price),
-            digit: finiteNumber(t.digit),
-            time: finiteNumber(t.time, Date.now()),
-          };
-        })
-      : [],
-    trades: Array.isArray(source.trades)
-      ? source.trades.map((trade, index) => {
-          const t = asRecord(trade);
-          const status = t.status === "won" || t.status === "lost" ? t.status : "open";
-          return {
-            id: String(t.id ?? `trade-${index}`),
-            time: finiteNumber(t.time, Date.now()),
-            digit: finiteNumber(t.digit),
-            buyPrice: finiteNumber(t.buyPrice),
-            payout: t.payout == null ? undefined : finiteNumber(t.payout),
-            profit: t.profit == null ? undefined : finiteNumber(t.profit),
-            status,
-          };
-        })
-      : [],
-  };
-}
 
 function useAnimatedNumber(value: number, duration = 400) {
   const [v, setV] = useState(value);
@@ -155,341 +53,51 @@ function useAnimatedNumber(value: number, duration = 400) {
 }
 
 function Dashboard() {
-  const { user, loading, signOut } = useAuth();
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { authState, accounts, activeAccount, wsUrl, logout, switchAccount } = useDerivAuth();
   const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
-  const s = useMemo(() => normalizeBotState(state), [state]);
-  const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [accountType, setAccountType] = useState<"demo" | "real">("demo");
-  const [token, setToken] = useState("");
-  const [savingToken, setSavingToken] = useState(false);
-  const [tokenLoaded, setTokenLoaded] = useState(false);
-  const [tokenLoadError, setTokenLoadError] = useState<string | null>(null);
-  const [savedMsg, setSavedMsg] = useState<string | null>(null);
-
-  const [confirmReal, setConfirmReal] = useState(false);
-  const [sessionStart, setSessionStart] = useState<number>(() => Date.now());
-  const [historyKey, setHistoryKey] = useState(0);
-  const [savingSession, setSavingSession] = useState(false);
-
-  async function endAndSaveSession() {
-    if (!user) return;
-    if (!s || s.totalTrades === 0) {
-      stop();
-      reset();
-      setSessionStart(Date.now());
-      return;
-    }
-    setSavingSession(true);
-    stop();
-    const { error } = await supabase.from("trading_sessions").insert({
-      user_id: user.id,
-      account_type: accountType,
-      pnl: Number(s.pnl.toFixed(4)),
-      wins: s.wins,
-      losses: s.losses,
-      total_trades: s.totalTrades,
-      stake: cfg.stake,
-      target_digit: cfg.targetDigit,
-      repetition_count: cfg.repetitionCount,
-      started_at: new Date(sessionStart).toISOString(),
-      ended_at: new Date().toISOString(),
-    });
-    setSavingSession(false);
-    if (!error) {
-      reset();
-      setSessionStart(Date.now());
-      setHistoryKey((k) => k + 1);
-    }
-  }
-
-  // Keep the bot's config in sync with the typed token + selected account.
-  useEffect(() => {
-    setCfg((c) =>
-      c.token === token && c.accountType === accountType
-        ? c
-        : { ...c, token, accountType },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, accountType]);
-
-  // Auto-connect once a saved token has loaded.
-  const autoConnectedRef = useRef(false);
-  useEffect(() => {
-    if (!tokenLoaded) return;
-    if (autoConnectedRef.current) return;
-    if (!token) return;
-    if (s?.connected || s?.authorized) return;
-    autoConnectedRef.current = true;
-    setTimeout(() => connect(), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenLoaded, token]);
-
-  async function saveToken() {
-      if (!user) return;
-      setSavingToken(true);
-      try {
-        if (token.trim()) {
-          await createDerivAccount({ access_token: token.trim(), account_type: accountType });
-        }
-      } catch (err) {
-        console.warn("Failed to provision account via API:", err);
-      }
-      const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email ?? null,
-      deriv_token: token.trim(),
-      account_type: accountType,
-    });
-    setSavingToken(false);
-    if (error) {
-      setTokenLoadError(error.message);
-    } else {
-      setSavedMsg("Saved");
-      setTimeout(() => setSavedMsg(null), 2000);
-    }
-  }
-
-  // ---------- Trade notifications (Web Push -> all of this user's devices) ----------
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
-    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "denied",
-  );
-  const notifSupported = typeof window !== "undefined" && "Notification" in window;
-  const seenTradesRef = useRef<Set<string>>(new Set());
-  // Seed seen set with any open trades that already exist so we don't spam on mount
-  useEffect(() => {
-    if (!s?.trades) return;
-    for (const t of s.trades) {
-      if (t.status !== "open" && !seenTradesRef.current.has(t.id)) {
-        seenTradesRef.current.add(t.id);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function urlBase64ToUint8Array(base64: string) {
-    const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-    const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
-    const out = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-    return out;
-  }
-
-  async function ensurePushSubscription() {
-    if (typeof window === "undefined") return;
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    try {
-      const reg =
-        (await navigator.serviceWorker.getRegistration()) ||
-        (await navigator.serviceWorker.register("/sw.js"));
-      await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        const { data: vapid, error: vErr } = await supabase.functions.invoke("push", {
-          body: { action: "vapid" },
-        });
-        if (vErr || !vapid?.publicKey) throw vErr ?? new Error("No VAPID key");
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
-        });
-      }
-      const json = sub.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
-      await supabase.functions.invoke("push", {
-        body: {
-          action: "subscribe",
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-          userAgent: navigator.userAgent.slice(0, 500),
-        },
-      });
-    } catch (e) {
-      console.warn("Push subscription failed", e);
-    }
-  }
-
-  async function sendPushSafe(payload: {
-    title: string;
-    body: string;
-    tag?: string;
-    requireInteraction?: boolean;
-    vibrate?: number[];
-  }) {
-    try {
-      await supabase.functions.invoke("push", {
-        body: { action: "send", ...payload },
-      });
-    } catch (e) {
-      console.warn("Push send failed", e);
-    }
-  }
-
-  useEffect(() => {
-    if (!notifSupported || notifPerm !== "granted") return;
-    if (!s?.trades) return;
-    for (const t of s.trades) {
-      if (t.status === "open") continue;
-      if (seenTradesRef.current.has(t.id)) continue;
-      seenTradesRef.current.add(t.id);
-      const won = t.status === "won";
-      const profit = typeof t.profit === "number" ? t.profit : 0;
-      const title = won ? "✅ Trade won" : "❌ Trade lost";
-      const body = `${won ? "+" : ""}${profit.toFixed(2)} ${s.currency} · Digit ${t.digit} · Session P/L ${s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(2)}`;
-      void sendPushSafe({
-        title,
-        body,
-        tag: `trade-${t.id}`,
-        vibrate: won ? [80, 40, 80] : [200],
-      });
-    }
-  }, [s?.trades, notifPerm, notifSupported, s?.currency, s?.pnl]);
-
-  async function requestNotifications() {
-    if (!notifSupported) return;
-    try {
-      const p = await Notification.requestPermission();
-      setNotifPerm(p);
-      if (p === "granted") {
-        await ensurePushSubscription();
-        void sendPushSafe({
-          title: "Notifications enabled",
-          body: "You'll get alerts on every signed-in device.",
-          tag: "enabled",
-        });
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Re-attach subscription on load if permission is already granted (covers new devices)
-  useEffect(() => {
-    if (notifPerm === "granted") void ensurePushSubscription();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifPerm]);
-
-  // Notify on Stop Loss / Take Profit trigger (bot sets state.error with these labels)
-  const lastRiskErrRef = useRef<string | null>(null);
-  useEffect(() => {
-    const err = s?.error ?? null;
-    if (!err || err === lastRiskErrRef.current) return;
-    const isSL = err.startsWith("Stop Loss hit");
-    const isTP = err.startsWith("Take Profit reached");
-    if (!isSL && !isTP) return;
-    lastRiskErrRef.current = err;
-    if (!notifSupported || notifPerm !== "granted") return;
-    const title = isTP ? "🎯 Take Profit reached" : "🛑 Stop Loss hit";
-    const body = `${err} · Session ended · ${s?.wins ?? 0}W / ${s?.losses ?? 0}L`;
-    void sendPushSafe({
-      title,
-      body,
-      tag: `risk-${Date.now()}`,
-      requireInteraction: true,
-      vibrate: isTP ? [80, 40, 80, 40, 200] : [300, 100, 300],
-    });
-  }, [s?.error, notifPerm, notifSupported, s?.wins, s?.losses]);
-
-  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]); // Load tokens + preferred account type from this signed-in user's profile.
-
-  // Assigns a group index to each digit that's part of a same-digit streak (length ≥ 2).
-  // Consecutive streaks of different digits get different group ids so they can be styled
-  // distinctly (e.g. 0 0 4 4 1 1 → groups 0, 0, 1, 1, 2, 2). Non-streak digits get -1.
-  const computeStreakGroups = (vals: number[]): number[] => {
-    const out: number[] = new Array(vals.length).fill(-1);
-    let g = -1;
-    for (let i = 0; i < vals.length; i++) {
-      const inStreak = vals[i] === vals[i - 1] || vals[i] === vals[i + 1];
-      if (!inStreak) continue;
-      if (i === 0 || vals[i] !== vals[i - 1]) g++;
-      out[i] = g;
-    }
-    return out;
+  const s = state ?? {
+    connected: false,
+    running: false,
+    authorized: false,
+    balance: null,
+    currency: "USD",
+    lastDigit: null,
+    lastPrice: null,
+    streak: 0,
+    streakDigit: null,
+    ticks: [],
+    trades: [],
+    pnl: 0,
+    wins: 0,
+    losses: 0,
+    totalTrades: 0,
+    error: null,
+    pendingTrade: false,
   };
+  const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
+  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
+
+  // Keep bot configured with the active wsUrl
   useEffect(() => {
-    if (!user) {
-      setTokenLoaded(false);
-      setTokenLoadError(null);
-      setToken("");
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      setTokenLoaded(false);
-      setTokenLoadError(null);
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("email, deriv_token, account_type")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
-        console.error("Profile token load failed:", error);
-        setToken("");
-        setTokenLoadError("Saved token could not be loaded. Please try signing out and back in.");
-        setTokenLoaded(true);
-        return;
-      }
-      const tok = data?.deriv_token ?? "";
-      const at = (data?.account_type === "real" ? "real" : "demo") as "demo" | "real";
-
-      setToken(tok);
-      setAccountType(at);
-      setCfg((c) => ({ ...c, token: tok, accountType: at }));
-      setTokenLoaded(true);
-
-      if (!data) {
-        const { error: createError } = await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email ?? null,
-          account_type: at,
-        });
-        if (createError && !cancelled) {
-          console.error("Profile creation failed:", createError);
-          setTokenLoadError(
-            "Your profile was created late, but token saving is not ready yet. Refresh and try again.",
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  // When user switches account type, disconnect any active session.
-  function switchAccount(next: "demo" | "real") {
-    if (next === accountType) return;
-    if (next === "real" && !confirmReal) {
-      setConfirmReal(true);
-      return;
-    }
-    setAccountType(next);
-    setConfirmReal(false);
+    setCfg((c) => ({ ...c, wsUrl }));
+    // If wsUrl changed, disconnect the old socket so the user can connect again
     disconnect();
-    autoConnectedRef.current = false;
-    setCfg({ ...cfg, token, accountType: next });
-    if (user) {
-      supabase.from("profiles").update({ account_type: next }).eq("id", user.id);
-    }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsUrl]);
 
+  const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
 
-
-
-
-  if (loading) {
+  if (authState === 'authenticating') {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
-        Loading…
+        Authenticating…
       </div>
     );
   }
-  if (!user) return <AuthScreen />;
+  
+  if (authState !== 'authenticated' || !activeAccount) {
+    return <AuthScreen />;
+  }
 
   const statusColor = !s?.connected
     ? "text-muted-foreground"
@@ -504,434 +112,9 @@ function Dashboard() {
         ? "Idle"
         : "Connecting…";
 
-  const ControlsPanel = (
-    <section className="bg-background p-4 sm:p-5 space-y-5">
-      <SectionLabel>Connection</SectionLabel>
-
-      {/* Account selector */}
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-muted-foreground">Account</span>
-        <Select
-          value={accountType}
-          onValueChange={(v: string) => switchAccount(v as "demo" | "real")}
-        >
-          <SelectTrigger className="w-full text-sm">
-            <SelectValue placeholder="Select account" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="demo">Demo</SelectItem>
-            <SelectItem value="real">Real</SelectItem>
-          </SelectContent>
-        </Select>
-        {accountType === "real" && (
-          <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-            Live trading uses real funds. Make sure the API token below belongs to your Real account.
-          </div>
-        )}
-        {confirmReal && accountType === "demo" && (
-          <div className="space-y-1.5 rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">
-            <div>
-              Switching to <b>Real</b> will trade with real money. Confirm?
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => switchAccount("real")}
-                className="rounded bg-bear px-2 py-1 text-[11px] text-white"
-              >
-                Confirm Real
-              </button>
-              <button
-                onClick={() => setConfirmReal(false)}
-                className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* API token */}
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-muted-foreground">Deriv API Token</span>
-        <input
-          type="password"
-          className="input"
-          placeholder="Paste your Deriv API token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <p className="text-[10.5px] text-muted-foreground leading-snug">
-          Create one at app.deriv.com → Settings → API token (Trade scope).
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            className="btn-secondary inline-flex items-center justify-center gap-1.5"
-            onClick={saveToken}
-            disabled={savingToken || !token.trim()}
-          >
-            <Save className="h-3.5 w-3.5" />
-            {savingToken ? "Saving…" : "Save"}
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => {
-              autoConnectedRef.current = false;
-              connect();
-            }}
-            disabled={!token.trim() || s?.connected}
-          >
-            {s?.connected ? "Connected" : "Connect"}
-          </button>
-        </div>
-        {savedMsg && <div className="text-[11px] text-bull">{savedMsg}</div>}
-        {tokenLoadError && (
-          <div className="rounded-md border border-bear/40 bg-bear/10 px-2.5 py-1.5 text-[11px] text-bear">
-            {tokenLoadError}
-          </div>
-        )}
-      </div>
-
-
-
-      <Divider />
-      <SectionLabel>Strategy</SectionLabel>
-
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-muted-foreground">Trigger Mode</span>
-        <Select
-          value={cfg.triggerMode ?? "specific"}
-          onValueChange={(v: string) => setCfg({ ...cfg, triggerMode: v as TriggerMode })}
-        >
-          <SelectTrigger className="w-full text-sm">
-            <SelectValue placeholder="Select strategy" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="specific">Specific digit</SelectItem>
-            <SelectItem value="any">Any digit</SelectItem>
-            <SelectItem value="xxyyy">XXYYY = Z</SelectItem>
-            <SelectItem value="xxxyy">XXXYY = Z</SelectItem>
-            <SelectItem value="odd">Odd reps</SelectItem>
-            <SelectItem value="even">Even reps</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-[10.5px] text-muted-foreground leading-snug">
-          {cfg.triggerMode === "any"
-            ? "Trades when any digit repeats N times in a row. Trade is placed against the digit that triggered."
-            : cfg.triggerMode === "xxyyy"
-            ? "Detects the pattern XX YYY (one digit repeats twice, then a different digit repeats three times). Predicts the next digit will differ from Y."
-            : cfg.triggerMode === "xxxyy"
-            ? "Detects the pattern XXX YY (one digit repeats three times, then a different digit repeats twice). Predicts the next digit will differ from Y."
-            : cfg.triggerMode === "odd"
-            ? "Trades when an odd digit (1,3,5,7,9) repeats N times in a row. Placed against the triggering digit."
-            : cfg.triggerMode === "even"
-            ? "Trades when an even digit (0,2,4,6,8) repeats N times in a row. Placed against the triggering digit."
-            : "Trades only when the chosen target digit repeats N times in a row."}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {cfg.triggerMode === "specific" && (
-          <Field label="Target Digit">
-            <select
-              className="input"
-              value={cfg.targetDigit}
-              onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
-            >
-              {Array.from({ length: 10 }).map((_, i) => (
-                <option key={i} value={i}>
-                  {i}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        {cfg.triggerMode !== "xxyyy" && cfg.triggerMode !== "xxxyy" && (
-          <Field label="Repetitions">
-            <NumInput
-              value={cfg.repetitionCount}
-              min={1}
-              step={1}
-              onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
-            />
-          </Field>
-        )}
-        <Field label="Stake (USD)">
-          <NumInput
-            value={cfg.stake}
-            min={0.35}
-            step={0.5}
-            onChange={(v) => setCfg({ ...cfg, stake: v })}
-          />
-        </Field>
-      </div>
-
-
-
-      <Divider />
-      <SectionLabel>Risk</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Stop Loss ($)">
-          <NumInput
-            value={cfg.stopLoss}
-            min={0}
-            step={1}
-            onChange={(v) => setCfg({ ...cfg, stopLoss: v })}
-          />
-        </Field>
-        <Field label="Take Profit ($)">
-          <NumInput
-            value={cfg.takeProfit}
-            min={0}
-            step={1}
-            onChange={(v) => setCfg({ ...cfg, takeProfit: v })}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 pt-2">
-        {!s?.running ? (
-          <button className="btn-primary col-span-1" onClick={start} disabled={!s?.authorized}>
-            Start Bot
-          </button>
-        ) : (
-          <button className="btn-danger col-span-1" onClick={stop}>
-            Stop Bot
-          </button>
-        )}
-        <button className="btn-ghost" onClick={reset}>
-          Reset
-        </button>
-      </div>
-      <button
-        className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
-        onClick={endAndSaveSession}
-        disabled={savingSession || !s || s.totalTrades === 0}
-      >
-        <Archive className="h-3.5 w-3.5" />
-        {savingSession ? "Saving…" : "End & Save Session"}
-      </button>
-
-      {s?.error && (
-        <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
-          {s.error}
-        </div>
-      )}
-    </section>
-  );
-
-  const LivePanel = (
-    <section className="bg-background p-4 sm:p-6 space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <Panel
-          title="Last Digit"
-          hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}
-        >
-          <div className="flex items-end justify-between gap-4">
-            <div
-              key={s?.lastDigit ?? "—"}
-              className={`font-mono text-[80px] sm:text-[112px] leading-none tracking-tight tick-pulse ${
-                (() => {
-                  const isStreak =
-                    s?.lastDigit != null &&
-                    s?.ticks?.[1]?.digit === s?.lastDigit &&
-                    (cfg.triggerMode === "any" || s?.lastDigit === cfg.targetDigit);
-                  return isStreak ? "text-primary digit-glow" : "text-foreground";
-                })()
-              }`}
-            >
-              {s?.lastDigit ?? "—"}
-            </div>
-            <div className="text-right space-y-1">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Price</div>
-              <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
-              <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
-                Streak
-              </div>
-              <div className="font-mono text-xl">
-                <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
-                <span className="text-muted-foreground"> / {cfg.repetitionCount}</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-1.5">
-            {(() => {
-              const isAny = cfg.triggerMode !== "specific";
-              const groups = computeStreakGroups(digits);
-              const styles = [
-                "bg-primary/15 text-primary",
-                "bg-warn/15 text-warn",
-                "bg-bull/15 text-bull",
-                "bg-bear/15 text-bear",
-              ];
-              return digits.map((d, i) => {
-                const g = groups[i];
-                const inStreak = g >= 0;
-                const highlight = isAny ? inStreak : d === cfg.targetDigit;
-                const cls = highlight
-                  ? isAny
-                    ? styles[g % styles.length]
-                    : "bg-primary/15 text-primary"
-                  : "bg-surface text-muted-foreground";
-                return (
-                  <span
-                    key={i}
-                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${cls}`}
-                  >
-                    {d}
-                  </span>
-                );
-              });
-            })()}
-            {digits.length === 0 && (
-              <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
-            )}
-          </div>
-        </Panel>
-
-        <Panel title="Tick Stream">
-          <div className="h-[260px] overflow-hidden font-mono text-xs">
-            {s?.ticks.length ? (
-              <ul className="space-y-1">
-                {(() => {
-                  const visible = s.ticks.slice(0, 14);
-                  const isAny = cfg.triggerMode !== "specific";
-                  const groups = computeStreakGroups(visible.map((t) => t.digit));
-                  const colors = [
-                    "text-primary",
-                    "text-warn",
-                    "text-bull",
-                    "text-bear",
-                  ];
-                  return visible.map((t, i) => {
-                    const g = groups[i];
-                    const inStreak = g >= 0;
-                    const highlight = isAny ? inStreak : t.digit === cfg.targetDigit;
-                    const color = highlight
-                      ? isAny
-                        ? colors[g % colors.length]
-                        : "text-primary"
-                      : "";
-                    return (
-                      <li key={t.time + "-" + i} className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                        </span>
-                        <span>{t.price.toFixed(2)}</span>
-                        <span className={color}>·{t.digit}</span>
-                      </li>
-                    );
-                  });
-                })()}
-              </ul>
-            ) : (
-              <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
-            )}
-          </div>
-        </Panel>
-      </div>
-
-      <Panel
-        title="Trade Log"
-        hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}
-      >
-        {s?.trades.length ? (
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm min-w-[440px]">
-              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
-                <tr className="text-left">
-                  <th className="py-2 pr-4 font-medium">Time</th>
-                  <th className="py-2 pr-4 font-medium">Differ ≠</th>
-                  <th className="py-2 pr-4 font-medium">Stake</th>
-                  <th className="py-2 pr-4 font-medium">Result</th>
-                  <th className="py-2 pr-0 font-medium text-right">P/L</th>
-                </tr>
-              </thead>
-              <tbody className="font-mono">
-                {s.trades.map((t) => (
-                  <tr key={t.id} className="border-t border-border">
-                    <td className="py-2 pr-4 text-muted-foreground">
-                      {new Date(t.time).toLocaleTimeString([], { hour12: false })}
-                    </td>
-                    <td className="py-2 pr-4">{t.digit}</td>
-                    <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
-                    <td className="py-2 pr-4">
-                      {t.status === "open" ? (
-                        <span className="text-warn">open</span>
-                      ) : t.status === "won" ? (
-                        <span className="text-bull">win</span>
-                      ) : (
-                        <span className="text-bear">loss</span>
-                      )}
-                    </td>
-                    <td
-                      className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
-                    >
-                      {t.profit == null ? "—" : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <EmptyState>Trades will appear here once the bot fires.</EmptyState>
-        )}
-      </Panel>
-    </section>
-  );
-
-  const StatsPanel = (
-    <section className="bg-background p-4 sm:p-5 space-y-5">
-      <SectionLabel>Session</SectionLabel>
-      <div className="space-y-1">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
-        <div
-          className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}
-        >
-          {pnlAnim >= 0 ? "+" : ""}
-          {pnlAnim.toFixed(2)}
-          <span className="text-base text-muted-foreground"> {s?.currency}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Stat label="Wins" value={s?.wins ?? 0} accent="bull" />
-        <Stat label="Losses" value={s?.losses ?? 0} accent="bear" />
-        <Stat label="Trades" value={s?.totalTrades ?? 0} />
-        <Stat
-          label="Win rate"
-          value={`${s && s.totalTrades ? Math.round((s.wins / s.totalTrades) * 100) : 0}%`}
-        />
-      </div>
-
-      <Divider />
-      <SectionLabel>Bot</SectionLabel>
-      <Row k="Status" v={statusLabel} />
-      <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
-      <Row k="Reps waited" v={`${cfg.repetitionCount}`} />
-      <Row k="Streak" v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`} />
-      <Row k="Symbol" v="R_100" />
-      <Row k="Duration" v="1 tick" />
-
-      <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-        Demo and Real tokens are saved separately and are only loaded for your signed-in account.
-      </p>
-    </section>
-  );
-
-  const HistoryPanel = (
-    <section className="bg-background p-4 sm:p-5">
-      <SessionHistory userId={user.id} refreshKey={historyKey} />
-    </section>
-  );
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Top bar */}
-      <header className="flex items-center justify-between gap-2 border-b border-border px-3 sm:px-6 py-3">
+    <div className="min-h-[100dvh] bg-background text-foreground pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] lg:pb-0 px-safe">
+      <header className="flex items-center justify-between border-b border-border px-3 sm:px-6 py-3 gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="h-6 w-6 shrink-0 rounded-sm bg-primary/20 grid place-items-center">
             <div className="h-2 w-2 rounded-sm bg-primary" />
@@ -941,13 +124,13 @@ function Dashboard() {
             <span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
           </h1>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4 text-xs">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 text-xs shrink-0">
+          <div className="flex items-center gap-1.5">
             <span
               className={`status-dot inline-block h-2 w-2 rounded-full ${statusColor}`}
               style={{ backgroundColor: "currentColor" }}
             />
-            <span className={statusColor}>{statusLabel}</span>
+            <span className={`${statusColor} hidden xs:inline`}>{statusLabel}</span>
           </div>
           <div className="text-muted-foreground font-mono">
             <span className="hidden sm:inline">{s?.currency} </span>
@@ -955,41 +138,27 @@ function Dashboard() {
               {s?.balance != null ? s.balance.toFixed(2) : "—"}
             </span>
           </div>
-          <div className="hidden md:block text-muted-foreground font-mono max-w-[160px] truncate">
-            {user.email}
-          </div>
-          {notifSupported && (
-            <button
-              onClick={requestNotifications}
-              disabled={notifPerm === "denied"}
-              className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                notifPerm === "granted"
-                  ? "Trade notifications enabled"
-                  : notifPerm === "denied"
-                    ? "Notifications blocked — enable them in your browser settings"
-                    : "Enable trade notifications"
-              }
-              aria-label="Toggle notifications"
-            >
-              {notifPerm === "granted" ? (
-                <Bell className="h-3.5 w-3.5 text-bull" />
-              ) : (
-                <BellOff className="h-3.5 w-3.5" />
-              )}
-            </button>
-          )}
-          <button
-            onClick={toggleTheme}
-            className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label="Toggle theme"
+          
+          <select 
+            value={activeAccount.account_id}
+            onChange={(e) => switchAccount(e.target.value)}
+            className="hidden md:block bg-surface border border-border rounded px-2 py-1 outline-none text-xs"
           >
-            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          </button>
+            {accounts.map(acc => (
+              <option key={acc.account_id} value={acc.account_id}>
+                {acc.account_id} ({acc.account_type === 'demo' ? 'Demo' : 'Real'})
+              </option>
+            ))}
+          </select>
+
+          <PwaInstallButton />
+          
           <button
-            onClick={() => signOut()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 sm:px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            onClick={() => {
+              disconnect();
+              logout();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Log out"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -998,50 +167,290 @@ function Dashboard() {
         </div>
       </header>
 
-      {/* Mobile / tablet: tabbed layout */}
-      <div className="lg:hidden">
-        <Tabs defaultValue="live" className="w-full">
-          <TabsList className="sticky top-0 z-10 grid w-full grid-cols-4 rounded-none border-b border-border bg-background h-11 p-1">
-            <TabsTrigger value="controls" className="text-xs gap-1.5">
-              <Settings className="h-3.5 w-3.5" />
-              <span className="inline">Controls</span>
-            </TabsTrigger>
-            <TabsTrigger value="live" className="text-xs gap-1.5">
-              <Activity className="h-3.5 w-3.5" />
-              <span className="inline">Live</span>
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="text-xs gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" />
-              <span className="inline">Stats</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="text-xs gap-1.5">
-              <History className="h-3.5 w-3.5" />
-              <span className="inline">History</span>
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="controls" className="mt-0">
-            {ControlsPanel}
-          </TabsContent>
-          <TabsContent value="live" className="mt-0">
-            {LivePanel}
-          </TabsContent>
-          <TabsContent value="stats" className="mt-0">
-            {StatsPanel}
-          </TabsContent>
-          <TabsContent value="history" className="mt-0">
-            {HistoryPanel}
-          </TabsContent>
-        </Tabs>
-      </div>
+      <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
+        {/* LEFT: Controls */}
+        <section
+          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "controls" ? "" : "hidden"} lg:block`}
+        >
+          <SectionLabel>Connection</SectionLabel>
 
-      {/* Desktop: 3-column grid */}
-      <main className="hidden lg:grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
-        {ControlsPanel}
-        <div className="bg-background">
-          {LivePanel}
-          {HistoryPanel}
-        </div>
-        {StatsPanel}
+          <div className="space-y-2">
+            <span className="text-[11px] text-muted-foreground">Active Account</span>
+            <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
+              {activeAccount.account_id}
+            </div>
+            {activeAccount.account_type === 'real' && (
+              <div className="text-[11px] text-bear">
+                Live trading uses real funds. Trade at your own risk.
+              </div>
+            )}
+          </div>
+
+          <button
+            className="btn-secondary w-full"
+            onClick={connect}
+            disabled={!wsUrl || s?.connected}
+          >
+            {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect Bot"}
+          </button>
+
+          <Divider />
+          <SectionLabel>Strategy</SectionLabel>
+          <label className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+            <span className="text-[11px] text-muted-foreground">
+              Any digit mode
+              <span className="block text-[10px] text-muted-foreground/70">
+                Trigger on whichever digit repeats
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={cfg.anyDigit}
+              onChange={(e) => setCfg({ ...cfg, anyDigit: e.target.checked })}
+              className="h-4 w-4 accent-primary"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Target Digit">
+              <select
+                className="input disabled:opacity-40"
+                value={cfg.targetDigit}
+                disabled={cfg.anyDigit}
+                onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+              >
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <option key={i} value={i}>
+                    {i}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Repetitions">
+              <NumInput
+                value={cfg.repetitionCount}
+                min={1}
+                step={1}
+                onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
+              />
+            </Field>
+            <Field label="Stake (USD)">
+              <NumInput
+                value={cfg.stake}
+                min={0.35}
+                step={0.5}
+                onChange={(v) => setCfg({ ...cfg, stake: v })}
+              />
+            </Field>
+          </div>
+
+          <Divider />
+          <SectionLabel>Risk</SectionLabel>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Stop Loss ($)">
+              <NumInput
+                value={cfg.stopLoss}
+                min={0}
+                step={1}
+                onChange={(v) => setCfg({ ...cfg, stopLoss: v })}
+              />
+            </Field>
+            <Field label="Take Profit ($)">
+              <NumInput
+                value={cfg.takeProfit}
+                min={0}
+                step={1}
+                onChange={(v) => setCfg({ ...cfg, takeProfit: v })}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            {!s?.running ? (
+              <button className="btn-primary col-span-1" onClick={start} disabled={!s?.authorized}>
+                Start Bot
+              </button>
+            ) : (
+              <button className="btn-danger col-span-1" onClick={stop}>
+                Stop Bot
+              </button>
+            )}
+            <button className="btn-ghost" onClick={reset}>
+              Reset
+            </button>
+          </div>
+
+          {s?.error && (
+            <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
+              {s.error}
+            </div>
+          )}
+        </section>
+
+        {/* CENTER: Live tick + digit */}
+        <section
+          className={`bg-background p-4 sm:p-6 space-y-6 ${mobileTab === "live" ? "" : "hidden"} lg:block`}
+        >
+          <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+            <Panel
+              title="Last Digit"
+              hint={`${cfg.symbol === "R_100" ? "Volatility 100 Index" : cfg.symbol}`}
+            >
+              <div className="flex items-end justify-between gap-6">
+                <div
+                  key={s?.lastDigit ?? "—"}
+                  className={`font-mono text-[112px] leading-none tracking-tight tick-pulse ${
+                    s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
+                  }`}
+                >
+                  {s?.lastDigit ?? "—"}
+                </div>
+                <div className="text-right space-y-1">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Price
+                  </div>
+                  <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
+                  <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
+                    {cfg.anyDigit ? `Reps (digit ${s?.streakDigit ?? "—"})` : "Streak"}
+                  </div>
+                  <div className="font-mono text-xl">
+                    <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
+                    <span className="text-muted-foreground"> / {cfg.repetitionCount}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-1.5">
+                {digits.map((d, i) => (
+                  <span
+                    key={i}
+                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
+                      d === cfg.targetDigit
+                        ? "bg-primary/15 text-primary"
+                        : "bg-surface text-muted-foreground"
+                    }`}
+                  >
+                    {d}
+                  </span>
+                ))}
+                {digits.length === 0 && (
+                  <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
+                )}
+              </div>
+            </Panel>
+
+            <Panel title="Tick Stream">
+              <div className="h-[260px] overflow-hidden font-mono text-xs">
+                {s?.ticks.length ? (
+                  <ul className="space-y-1">
+                    {s.ticks.slice(0, 14).map((t, i) => (
+                      <li key={t.time + "-" + i} className="flex items-center justify-between">
+                        <span className="text-muted-foreground">
+                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        </span>
+                        <span>{t.price.toFixed(2)}</span>
+                        <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
+                          ·{t.digit}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <EmptyState>No ticks yet. Connect & start the bot.</EmptyState>
+                )}
+              </div>
+            </Panel>
+          </div>
+
+          <Panel
+            title="Trade Log"
+            hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}
+          >
+            {s?.trades.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="py-2 pr-4 font-medium">Time</th>
+                      <th className="py-2 pr-4 font-medium">Differ ≠</th>
+                      <th className="py-2 pr-4 font-medium">Stake</th>
+                      <th className="py-2 pr-4 font-medium">Result</th>
+                      <th className="py-2 pr-0 font-medium text-right">P/L</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    {s.trades.map((t) => (
+                      <tr key={t.id} className="border-t border-border">
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        </td>
+                        <td className="py-2 pr-4">{t.digit}</td>
+                        <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
+                        <td className="py-2 pr-4">
+                          {t.status === "open" ? (
+                            <span className="text-warn">open</span>
+                          ) : t.status === "won" ? (
+                            <span className="text-bull">win</span>
+                          ) : (
+                            <span className="text-bear">loss</span>
+                          )}
+                        </td>
+                        <td
+                          className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
+                        >
+                          {t.profit == null
+                            ? "—"
+                            : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState>Trades will appear here once the bot fires.</EmptyState>
+            )}
+          </Panel>
+        </section>
+
+        {/* RIGHT: Stats */}
+        <section
+          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block`}
+        >
+          <SectionLabel>Session</SectionLabel>
+          <div className="space-y-1">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
+            <div
+              className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}
+            >
+              {pnlAnim >= 0 ? "+" : ""}
+              {pnlAnim.toFixed(2)}
+              <span className="text-base text-muted-foreground"> {s?.currency}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Wins" value={s?.wins ?? 0} accent="bull" />
+            <Stat label="Losses" value={s?.losses ?? 0} accent="bear" />
+            <Stat label="Trades" value={s?.totalTrades ?? 0} />
+            <Stat
+              label="Win rate"
+              value={`${s && s.totalTrades ? Math.round((s.wins / s.totalTrades) * 100) : 0}%`}
+            />
+          </div>
+
+          <Divider />
+          <SectionLabel>Bot</SectionLabel>
+          <Row k="Status" v={statusLabel} />
+          <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
+          <Row k="Mode" v={cfg.anyDigit ? "Any digit" : `Digit ${cfg.targetDigit}`} />
+          <Row k="Repetitions required" v={String(cfg.repetitionCount)} />
+          <Row
+            k={cfg.anyDigit ? `Reps waited (digit ${s?.streakDigit ?? "—"})` : "Streak"}
+            v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`}
+          />
+          <Row k="Symbol" v="R_100" />
+          <Row k="Duration" v="1 tick" />
+
+        </section>
       </main>
 
       <style>{`
@@ -1074,124 +483,100 @@ function Dashboard() {
         .btn-ghost:hover { color: var(--foreground); }
       `}</style>
       <Footer />
+      <PwaInstallBanner aboveNav />
+
+      {/* Mobile bottom nav */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
+        <div className="grid grid-cols-3">
+          {(
+            [
+              { id: "controls", label: "Controls", icon: Settings2 },
+              { id: "live", label: "Live", icon: Activity },
+              { id: "stats", label: "Stats", icon: BarChart3 },
+            ] as const
+          ).map(({ id, label, icon: Icon }) => {
+            const active = mobileTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setMobileTab(id)}
+                className={`flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors ${
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${active ? "opacity-100" : "opacity-70"}`} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-      {children}
-    </div>
-  );
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-[11px] font-semibold uppercase tracking-wider text-foreground mb-3">{children}</h2>;
 }
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Divider() {
+  return <hr className="border-border my-6" />;
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-[11px] text-muted-foreground block">{label}</span>
       {children}
     </label>
   );
 }
-function NumInput({
-  value,
-  onChange,
-  min,
-  step,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  step?: number;
-}) {
-  const [text, setText] = useState<string>(String(value));
-  const focusedRef = useRef(false);
-
-  useEffect(() => {
-    if (!focusedRef.current) setText(String(value));
-  }, [value]);
-
+function NumInput({ value, min, step, onChange }: { value: number; min: number; step: number; onChange: (v: number) => void }) {
   return (
     <input
       type="number"
-      className="input"
-      value={text}
+      value={value || ""}
       min={min}
       step={step}
-      onFocus={(e) => {
-        focusedRef.current = true;
-        setText("");
-        e.target.select();
-      }}
-      onBlur={() => {
-        focusedRef.current = false;
-        if (text === "" || isNaN(Number(text))) {
-          setText(String(value));
-        } else {
-          const n = Number(text);
-          onChange(n);
-          setText(String(n));
-        }
-      }}
-      onChange={(e) => {
-        setText(e.target.value);
-        if (e.target.value !== "" && !isNaN(Number(e.target.value))) {
-          onChange(Number(e.target.value));
-        }
-      }}
+      onChange={(e) => onChange(parseFloat(e.target.value) || min)}
+      className="input"
     />
   );
 }
-function Divider() {
-  return <div className="h-px bg-border" />;
-}
-function Panel({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: ReactNode;
-}) {
+function Stat({ label, value, accent }: { label: string; value: string | number; accent?: "bull" | "bear" }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/40 p-5">
+    <div className="rounded-md border border-border bg-surface-2 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </div>
+      <div className={`font-mono text-xl ${accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : ""}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface/50 p-5 shadow-sm">
       <div className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-display text-sm font-semibold tracking-tight">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider">{title}</h3>
         {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
       </div>
       {children}
     </div>
   );
 }
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number | string;
-  accent?: "bull" | "bear";
-}) {
-  const color =
-    accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : "text-foreground";
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="rounded-md bg-surface px-3 py-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`font-mono text-lg ${color}`}>{value}</div>
-    </div>
-  );
-}
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex items-center justify-between text-xs">
+    <div className="flex items-center justify-between py-1.5 text-xs">
       <span className="text-muted-foreground">{k}</span>
-      <span className="font-mono">{v}</span>
+      <span className="font-mono font-medium">{v}</span>
     </div>
   );
 }
-function EmptyState({ children }: { children: ReactNode }) {
+function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid place-items-center py-8 text-xs text-muted-foreground">{children}</div>
+    <div className="flex h-full flex-col items-center justify-center space-y-3 rounded-lg border border-dashed border-border bg-surface/30 p-8 text-center">
+      <Activity className="h-6 w-6 text-muted-foreground/30" />
+      <span className="text-xs text-muted-foreground">{children}</span>
+    </div>
   );
 }

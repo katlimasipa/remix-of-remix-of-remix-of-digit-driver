@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
+import { registerServiceWorker } from "@/lib/pwa";
 
 function NotFoundComponent() {
   return (
@@ -28,6 +30,10 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
+  useEffect(() => {
+    registerServiceWorker().catch(() => {});
+  }, []);
+
   return (
     <>
       <Outlet />
