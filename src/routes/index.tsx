@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
+import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
 import { LogOut, Settings2, Activity, BarChart3 } from "lucide-react";
@@ -196,43 +197,61 @@ function Dashboard() {
 
           <Divider />
           <SectionLabel>Strategy</SectionLabel>
-          <label className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-            <span className="text-[11px] text-muted-foreground">
-              Any digit mode
-              <span className="block text-[10px] text-muted-foreground/70">
-                Trigger on whichever digit repeats
-              </span>
-            </span>
-            <input
-              type="checkbox"
-              checked={cfg.anyDigit}
-              onChange={(e) => setCfg({ ...cfg, anyDigit: e.target.checked })}
-              className="h-4 w-4 accent-primary"
-            />
-          </label>
+          <Field label="Mode">
+            <select
+              className="input"
+              value={cfg.triggerMode}
+              onChange={(e) =>
+                setCfg({ ...cfg, triggerMode: e.target.value as TriggerMode })
+              }
+            >
+              <option value="specific">Specific digit</option>
+              <option value="any">Any digit</option>
+              <option value="xxyyy">XXYYY = Z</option>
+              <option value="xxxyy">XXXYY = Z</option>
+              <option value="odd">Odd reps</option>
+              <option value="even">Even reps</option>
+            </select>
+          </Field>
+          <p className="text-[10px] text-muted-foreground/80 -mt-2">
+            {cfg.triggerMode === "any"
+              ? "Trades when any digit repeats N times in a row."
+              : cfg.triggerMode === "xxyyy"
+                ? "Detects XX YYY pattern; predicts next digit differs from Y."
+                : cfg.triggerMode === "xxxyy"
+                  ? "Detects XXX YY pattern; predicts next digit differs from Y."
+                  : cfg.triggerMode === "odd"
+                    ? "Trades when an odd digit repeats N times."
+                    : cfg.triggerMode === "even"
+                      ? "Trades when an even digit repeats N times."
+                      : "Trades when the target digit repeats N times."}
+          </p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Target Digit">
-              <select
-                className="input disabled:opacity-40"
-                value={cfg.targetDigit}
-                disabled={cfg.anyDigit}
-                onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
-              >
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Repetitions">
-              <NumInput
-                value={cfg.repetitionCount}
-                min={1}
-                step={1}
-                onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
-              />
-            </Field>
+            {cfg.triggerMode === "specific" && (
+              <Field label="Target Digit">
+                <select
+                  className="input"
+                  value={cfg.targetDigit}
+                  onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+                >
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            {cfg.triggerMode !== "xxyyy" && cfg.triggerMode !== "xxxyy" && (
+              <Field label="Repetitions">
+                <NumInput
+                  value={cfg.repetitionCount}
+                  min={1}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
+                />
+              </Field>
+            )}
             <Field label="Stake (USD)">
               <NumInput
                 value={cfg.stake}
@@ -299,7 +318,9 @@ function Dashboard() {
                 <div
                   key={s?.lastDigit ?? "—"}
                   className={`font-mono text-[112px] leading-none tracking-tight tick-pulse ${
-                    s?.lastDigit === cfg.targetDigit ? "text-primary digit-glow" : "text-foreground"
+                    cfg.triggerMode === "any" || s?.lastDigit === cfg.targetDigit
+                      ? "text-primary digit-glow"
+                      : "text-foreground"
                   }`}
                 >
                   {s?.lastDigit ?? "—"}
@@ -310,11 +331,21 @@ function Dashboard() {
                   </div>
                   <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
                   <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
-                    {cfg.anyDigit ? `Reps (digit ${s?.streakDigit ?? "—"})` : "Streak"}
+                    {cfg.triggerMode === "any" ||
+                    cfg.triggerMode === "odd" ||
+                    cfg.triggerMode === "even"
+                      ? `Reps (digit ${s?.streakDigit ?? "—"})`
+                      : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                        ? "Pattern"
+                        : "Streak"}
                   </div>
                   <div className="font-mono text-xl">
                     <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
-                    <span className="text-muted-foreground"> / {cfg.repetitionCount}</span>
+                    <span className="text-muted-foreground">
+                      {cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                        ? ""
+                        : ` / ${cfg.repetitionCount}`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -323,7 +354,7 @@ function Dashboard() {
                   <span
                     key={i}
                     className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                      d === cfg.targetDigit
+                      d === cfg.targetDigit || cfg.triggerMode === "any"
                         ? "bg-primary/15 text-primary"
                         : "bg-surface text-muted-foreground"
                     }`}
@@ -441,10 +472,40 @@ function Dashboard() {
           <SectionLabel>Bot</SectionLabel>
           <Row k="Status" v={statusLabel} />
           <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
-          <Row k="Mode" v={cfg.anyDigit ? "Any digit" : `Digit ${cfg.targetDigit}`} />
-          <Row k="Repetitions required" v={String(cfg.repetitionCount)} />
           <Row
-            k={cfg.anyDigit ? `Reps waited (digit ${s?.streakDigit ?? "—"})` : "Streak"}
+            k="Mode"
+            v={
+              cfg.triggerMode === "any"
+                ? "Any digit"
+                : cfg.triggerMode === "xxyyy"
+                  ? "XXYYY = Z"
+                  : cfg.triggerMode === "xxxyy"
+                    ? "XXXYY = Z"
+                    : cfg.triggerMode === "odd"
+                      ? "Odd reps"
+                      : cfg.triggerMode === "even"
+                        ? "Even reps"
+                        : `Digit ${cfg.targetDigit}`
+            }
+          />
+          <Row
+            k="Repetitions required"
+            v={
+              cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                ? "Pattern"
+                : String(cfg.repetitionCount)
+            }
+          />
+          <Row
+            k={
+              cfg.triggerMode === "any" ||
+              cfg.triggerMode === "odd" ||
+              cfg.triggerMode === "even"
+                ? `Reps waited (digit ${s?.streakDigit ?? "—"})`
+                : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                  ? "Pattern streak"
+                  : "Streak"
+            }
             v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`}
           />
           <Row k="Symbol" v="R_100" />

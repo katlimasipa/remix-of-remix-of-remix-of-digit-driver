@@ -46,6 +46,8 @@ function getAuthConfig(): AuthConfig {
 }
 
 export interface UseAuthReturn {
+  accessToken: string | null;
+  getAuthInfo: any;
   authState: AuthState;
   accounts: DerivAccount[];
   activeAccount: DerivAccount | null;
@@ -233,6 +235,8 @@ export function useDerivAuth(): UseAuthReturn {
   const activeAccount = accounts.find((acc) => acc.account_id === activeAccountId) ?? accounts[0] ?? null;
 
   return {
+    accessToken: getAuthInfo()?.access_token ?? null,
+    getAuthInfo,
     authState,
     accounts,
     activeAccount,

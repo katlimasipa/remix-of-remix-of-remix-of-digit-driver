@@ -9,7 +9,7 @@ const DEFAULT_CFG: BotConfig = {
   repetitionCount: 3,
   stopLoss: 10,
   takeProfit: 10,
-  anyDigit: false,
+  triggerMode: "specific",
 };
 
 export function useDerivBot() {
@@ -41,6 +41,7 @@ export function useDerivBot() {
     stop: () => botRef.current?.stop(),
     reset: () => botRef.current?.resetSession(),
     disconnect: () => botRef.current?.disconnect(),
-    onEvent: (fn: (e: import("@/lib/derivBot").BotEvent) => void) => botRef.current?.onEvent(fn),
+    onEvent: (fn: (e: import("@/lib/derivBot").BotEvent) => void) =>
+      botRef.current?.onEvent(fn),
   };
 }
