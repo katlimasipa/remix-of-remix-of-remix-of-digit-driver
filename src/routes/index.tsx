@@ -5,8 +5,9 @@ import { useDerivAuth } from "@/hooks/useDerivAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
-import { LogOut, Settings2, Activity, BarChart3 } from "lucide-react";
+import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff } from "lucide-react";
 import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
+import { useTradeNotifications } from "@/hooks/useTradeNotifications";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -87,6 +88,7 @@ function Dashboard() {
   }, [wsUrl]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
+  const notifications = useTradeNotifications(accounts, s);
 
   if (authState === 'authenticating') {
     return (
@@ -153,6 +155,27 @@ function Dashboard() {
           </select>
 
           <PwaInstallButton />
+
+          {notifications.supported && (
+            <button
+              onClick={() => void notifications.enable()}
+              disabled={notifications.denied}
+              className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                notifications.enabled
+                  ? "Trade notifications enabled on all devices"
+                  : notifications.denied
+                    ? "Notifications blocked — enable in browser settings"
+                    : "Enable trade notifications on all devices"
+              }
+            >
+              {notifications.enabled ? (
+                <Bell className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <BellOff className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
           
           <button
             onClick={() => {
