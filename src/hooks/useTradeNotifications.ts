@@ -130,5 +130,6 @@ export function useTradeNotifications(
     enable,
     enabled: permission === "granted",
     denied: permission === "denied",
+    requiresInstall: pushRequiresInstall(),
   };
 }

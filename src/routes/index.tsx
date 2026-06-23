@@ -162,11 +162,13 @@ function Dashboard() {
               disabled={notifications.denied}
               className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
-                notifications.enabled
-                  ? "Trade notifications enabled on all devices"
-                  : notifications.denied
-                    ? "Notifications blocked — enable in browser settings"
-                    : "Enable trade notifications on all devices"
+                notifications.requiresInstall
+                  ? "Install the app to your Home Screen first (iOS), then enable notifications"
+                  : notifications.enabled
+                    ? "Trade notifications enabled on all devices"
+                    : notifications.denied
+                      ? "Notifications blocked — enable in browser settings"
+                      : "Enable trade notifications on all devices"
               }
             >
               {notifications.enabled ? (
