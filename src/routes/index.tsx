@@ -602,6 +602,28 @@ function Dashboard() {
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
 
+          <Divider />
+          <button
+            onClick={handleEndSession}
+            className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+            disabled={!s || s.totalTrades === 0}
+            title="Save the current session to history and reset stats"
+          >
+            <Save className="h-3.5 w-3.5" />
+            End & Save Session
+          </button>
+        </section>
+
+        {/* History (mobile-only tab; on desktop shown inline in stats column) */}
+        <section
+          className={`bg-background p-4 sm:p-5 ${mobileTab === "history" ? "" : "hidden"} lg:hidden`}
+        >
+          <SessionHistory currentAccountId={activeAccount.account_id} />
+        </section>
+
+        {/* Desktop: history under stats column */}
+        <section className="hidden lg:block bg-background p-4 sm:p-5 lg:col-start-3">
+          <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
       </main>
 
