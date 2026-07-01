@@ -88,6 +88,10 @@ function Dashboard() {
   }, [wsUrl]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
+  const streakMap = useMemo(
+    () => computeStreakHighlights(digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount),
+    [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
+  );
   const notifications = useTradeNotifications(accounts, s);
 
   if (authState === 'authenticating') {
@@ -375,18 +379,28 @@ function Dashboard() {
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-1.5">
-                {digits.map((d, i) => (
-                  <span
-                    key={i}
-                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                      d === cfg.targetDigit || cfg.triggerMode === "any"
-                        ? "bg-primary/15 text-primary"
-                        : "bg-surface text-muted-foreground"
-                    }`}
-                  >
-                    {d}
-                  </span>
-                ))}
+                {digits.map((d, i) => {
+                  const hl = streakMap[i];
+                  return (
+                    <span
+                      key={i}
+                      className={`font-mono text-xs h-7 w-7 grid place-items-center rounded transition-colors ${
+                        hl ? "" : "bg-surface text-muted-foreground"
+                      }`}
+                      style={
+                        hl
+                          ? {
+                              backgroundColor: `hsl(${hl} / 0.18)`,
+                              color: `hsl(${hl})`,
+                              boxShadow: `inset 0 0 0 1px hsl(${hl} / 0.35)`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {d}
+                    </span>
+                  );
+                })}
                 {digits.length === 0 && (
                   <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
                 )}
@@ -400,7 +414,7 @@ function Dashboard() {
                     {s.ticks.slice(0, 14).map((t, i) => (
                       <li key={t.time + "-" + i} className="flex items-center justify-between">
                         <span className="text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                          {formatDateTime(t.time)}
                         </span>
                         <span>{t.price.toFixed(2)}</span>
                         <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
@@ -435,8 +449,8 @@ function Dashboard() {
                   <tbody className="font-mono">
                     {s.trades.map((t) => (
                       <tr key={t.id} className="border-t border-border">
-                        <td className="py-2 pr-4 text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
+                          {formatDateTime(t.time)}
                         </td>
                         <td className="py-2 pr-4">{t.digit}</td>
                         <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
@@ -472,14 +486,38 @@ function Dashboard() {
           className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block`}
         >
           <SectionLabel>Session</SectionLabel>
-          <div className="space-y-1">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
+          <div
+            className={`relative overflow-hidden rounded-xl border p-4 shadow-lg ${
+              pnlAnim >= 0
+                ? "border-bull/30 bg-gradient-to-br from-bull/15 via-bull/5 to-transparent"
+                : "border-bear/30 bg-gradient-to-br from-bear/15 via-bear/5 to-transparent"
+            }`}
+          >
             <div
-              className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}
+              className={`absolute inset-x-0 top-0 h-px ${pnlAnim >= 0 ? "bg-bull/50" : "bg-bear/50"}`}
+            />
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Net P/L
+              </div>
+              <div
+                className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  pnlAnim >= 0 ? "bg-bull/15 text-bull" : "bg-bear/15 text-bear"
+                }`}
+              >
+                {pnlAnim >= 0 ? "Profit" : "Loss"}
+              </div>
+            </div>
+            <div
+              className={`mt-2 font-mono text-4xl font-semibold tracking-tight tabular-nums ${
+                pnlAnim >= 0 ? "text-bull" : "text-bear"
+              }`}
             >
               {pnlAnim >= 0 ? "+" : ""}
               {pnlAnim.toFixed(2)}
-              <span className="text-base text-muted-foreground"> {s?.currency}</span>
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                {s?.currency}
+              </span>
             </div>
           </div>
 
@@ -665,4 +703,78 @@ function EmptyState({ children }: { children: React.ReactNode }) {
       <span className="text-xs text-muted-foreground">{children}</span>
     </div>
   );
+}
+
+function formatDateTime(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// Palette of HSL color strings (cycled per distinct streak run in the visible strip).
+const STREAK_COLORS = [
+  "var(--primary-hsl, 210 90% 60%)",
+  "38 92% 55%",   // amber
+  "142 70% 45%",  // green
+  "280 75% 65%",  // violet
+  "0 80% 62%",    // red
+  "190 85% 50%",  // cyan
+];
+
+// digits[0] is most recent. Returns an array of same length with hsl color string or null per index.
+function computeStreakHighlights(
+  digits: number[],
+  mode: TriggerMode,
+  targetDigit: number,
+  _reps: number,
+): (string | null)[] {
+  const out: (string | null)[] = digits.map(() => null);
+  if (!digits.length) return out;
+
+  // Pattern modes: highlight the last 5 ticks (indices 0..4) if they match XXYYY / XXXYY.
+  if (mode === "xxyyy" || mode === "xxxyy") {
+    if (digits.length >= 5) {
+      const [d0, d1, d2, d3, d4] = digits;
+      const matchXxyyy = mode === "xxyyy" && d0 === d1 && d1 === d2 && d3 === d4 && d0 !== d3;
+      const matchXxxyy = mode === "xxxyy" && d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2;
+      if (matchXxyyy || matchXxxyy) {
+        // Two colors: one for the "XX"/"XXX" run, another for the "YYY"/"YY" run.
+        const cA = `hsl(${STREAK_COLORS[0]})`;
+        const cB = `hsl(${STREAK_COLORS[1]})`;
+        if (mode === "xxyyy") {
+          out[0] = out[1] = out[2] = cA;
+          out[3] = out[4] = cB;
+        } else {
+          out[0] = out[1] = cA;
+          out[2] = out[3] = out[4] = cB;
+        }
+      }
+    }
+    return out;
+  }
+
+  // Walk consecutive same-digit runs. For "specific" only highlight runs of targetDigit.
+  // For "odd"/"even" only runs whose digit matches parity. For "any" all runs.
+  let colorIdx = 0;
+  let i = 0;
+  while (i < digits.length) {
+    let j = i;
+    while (j < digits.length && digits[j] === digits[i]) j++;
+    const runLen = j - i;
+    if (runLen >= 2) {
+      const d = digits[i];
+      const eligible =
+        mode === "any" ||
+        (mode === "specific" && d === targetDigit) ||
+        (mode === "odd" && d % 2 === 1) ||
+        (mode === "even" && d % 2 === 0);
+      if (eligible) {
+        const color = `hsl(${STREAK_COLORS[colorIdx % STREAK_COLORS.length]})`;
+        for (let k = i; k < j; k++) out[k] = color;
+        colorIdx++;
+      }
+    }
+    i = j;
+  }
+  return out;
 }
