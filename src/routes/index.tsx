@@ -486,14 +486,38 @@ function Dashboard() {
           className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block`}
         >
           <SectionLabel>Session</SectionLabel>
-          <div className="space-y-1">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Net P/L</div>
+          <div
+            className={`relative overflow-hidden rounded-xl border p-4 shadow-lg ${
+              pnlAnim >= 0
+                ? "border-bull/30 bg-gradient-to-br from-bull/15 via-bull/5 to-transparent"
+                : "border-bear/30 bg-gradient-to-br from-bear/15 via-bear/5 to-transparent"
+            }`}
+          >
             <div
-              className={`font-mono text-4xl tracking-tight ${pnlAnim >= 0 ? "text-bull" : "text-bear"}`}
+              className={`absolute inset-x-0 top-0 h-px ${pnlAnim >= 0 ? "bg-bull/50" : "bg-bear/50"}`}
+            />
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Net P/L
+              </div>
+              <div
+                className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  pnlAnim >= 0 ? "bg-bull/15 text-bull" : "bg-bear/15 text-bear"
+                }`}
+              >
+                {pnlAnim >= 0 ? "Profit" : "Loss"}
+              </div>
+            </div>
+            <div
+              className={`mt-2 font-mono text-4xl font-semibold tracking-tight tabular-nums ${
+                pnlAnim >= 0 ? "text-bull" : "text-bear"
+              }`}
             >
               {pnlAnim >= 0 ? "+" : ""}
               {pnlAnim.toFixed(2)}
-              <span className="text-base text-muted-foreground"> {s?.currency}</span>
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                {s?.currency}
+              </span>
             </div>
           </div>
 
