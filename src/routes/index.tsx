@@ -414,7 +414,7 @@ function Dashboard() {
                     {s.ticks.slice(0, 14).map((t, i) => (
                       <li key={t.time + "-" + i} className="flex items-center justify-between">
                         <span className="text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                          {formatDateTime(t.time)}
                         </span>
                         <span>{t.price.toFixed(2)}</span>
                         <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
