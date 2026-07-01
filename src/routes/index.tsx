@@ -78,7 +78,34 @@ function Dashboard() {
     pendingTrade: false,
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
+  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
+  const sessionStartRef = useRef<number>(Date.now());
+
+  const handleEndSession = () => {
+    if (!s || s.totalTrades === 0) {
+      alert("No trades in this session yet.");
+      return;
+    }
+    saveSession({
+      id: crypto.randomUUID(),
+      accountId: activeAccount?.account_id ?? "unknown",
+      accountType: (activeAccount?.account_type === "real" ? "real" : "demo"),
+      startedAt: sessionStartRef.current,
+      endedAt: Date.now(),
+      pnl: s.pnl,
+      wins: s.wins,
+      losses: s.losses,
+      totalTrades: s.totalTrades,
+      stake: cfg.stake,
+      triggerMode: cfg.triggerMode,
+      targetDigit: cfg.targetDigit,
+      repetitionCount: cfg.repetitionCount,
+      currency: s.currency ?? "USD",
+    });
+    stop();
+    reset();
+    sessionStartRef.current = Date.now();
+  };
 
   // Keep bot configured with the active wsUrl
   useEffect(() => {
