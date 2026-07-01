@@ -659,12 +659,13 @@ function Dashboard() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-4">
           {(
             [
               { id: "controls", label: "Controls", icon: Settings2 },
               { id: "live", label: "Live", icon: Activity },
               { id: "stats", label: "Stats", icon: BarChart3 },
+              { id: "history", label: "History", icon: History },
             ] as const
           ).map(({ id, label, icon: Icon }) => {
             const active = mobileTab === id;
