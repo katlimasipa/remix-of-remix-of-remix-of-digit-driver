@@ -612,17 +612,15 @@ function Dashboard() {
             <Save className="h-3.5 w-3.5" />
             End & Save Session
           </button>
-        </section>
 
-        {/* History (mobile-only tab; on desktop shown inline in stats column) */}
-        <section
-          className={`bg-background p-4 sm:p-5 ${mobileTab === "history" ? "" : "hidden"} lg:hidden`}
-        >
+          <Divider />
           <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
 
-        {/* Desktop: history under stats column */}
-        <section className="hidden lg:block bg-background p-4 sm:p-5 lg:col-start-3">
+        {/* Mobile-only history tab: separate view of saved sessions */}
+        <section
+          className={`bg-background p-4 sm:p-5 ${mobileTab === "history" ? "" : "hidden"} lg:hidden`}
+        >
           <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
       </main>
