@@ -760,14 +760,17 @@ function formatDateTime(t: number): string {
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// Palette of HSL color strings (cycled per distinct streak run in the visible strip).
+// Palette of HSL color strings (cycled per distinct streak run).
+// Each color is visually distinct so back-to-back streaks are easy to differentiate.
 const STREAK_COLORS = [
-  "var(--primary-hsl, 210 90% 60%)",
+  "190 90% 55%",  // cyan
   "38 92% 55%",   // amber
   "142 70% 45%",  // green
   "280 75% 65%",  // violet
   "0 80% 62%",    // red
-  "190 85% 50%",  // cyan
+  "210 90% 60%",  // blue
+  "50 95% 55%",   // yellow
+  "320 75% 60%",  // pink
 ];
 
 // digits[0] is most recent. Returns an array of same length with hsl color string or null per index.
