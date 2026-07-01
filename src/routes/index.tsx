@@ -88,6 +88,10 @@ function Dashboard() {
   }, [wsUrl]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
+  const streakMap = useMemo(
+    () => computeStreakHighlights(digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount),
+    [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
+  );
   const notifications = useTradeNotifications(accounts, s);
 
   if (authState === 'authenticating') {
