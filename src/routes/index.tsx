@@ -704,3 +704,77 @@ function EmptyState({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+function formatDateTime(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// Palette of HSL color strings (cycled per distinct streak run in the visible strip).
+const STREAK_COLORS = [
+  "var(--primary-hsl, 210 90% 60%)",
+  "38 92% 55%",   // amber
+  "142 70% 45%",  // green
+  "280 75% 65%",  // violet
+  "0 80% 62%",    // red
+  "190 85% 50%",  // cyan
+];
+
+// digits[0] is most recent. Returns an array of same length with hsl color string or null per index.
+function computeStreakHighlights(
+  digits: number[],
+  mode: TriggerMode,
+  targetDigit: number,
+  _reps: number,
+): (string | null)[] {
+  const out: (string | null)[] = digits.map(() => null);
+  if (!digits.length) return out;
+
+  // Pattern modes: highlight the last 5 ticks (indices 0..4) if they match XXYYY / XXXYY.
+  if (mode === "xxyyy" || mode === "xxxyy") {
+    if (digits.length >= 5) {
+      const [d0, d1, d2, d3, d4] = digits;
+      const matchXxyyy = mode === "xxyyy" && d0 === d1 && d1 === d2 && d3 === d4 && d0 !== d3;
+      const matchXxxyy = mode === "xxxyy" && d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2;
+      if (matchXxyyy || matchXxxyy) {
+        // Two colors: one for the "XX"/"XXX" run, another for the "YYY"/"YY" run.
+        const cA = `hsl(${STREAK_COLORS[0]})`;
+        const cB = `hsl(${STREAK_COLORS[1]})`;
+        if (mode === "xxyyy") {
+          out[0] = out[1] = out[2] = cA;
+          out[3] = out[4] = cB;
+        } else {
+          out[0] = out[1] = cA;
+          out[2] = out[3] = out[4] = cB;
+        }
+      }
+    }
+    return out;
+  }
+
+  // Walk consecutive same-digit runs. For "specific" only highlight runs of targetDigit.
+  // For "odd"/"even" only runs whose digit matches parity. For "any" all runs.
+  let colorIdx = 0;
+  let i = 0;
+  while (i < digits.length) {
+    let j = i;
+    while (j < digits.length && digits[j] === digits[i]) j++;
+    const runLen = j - i;
+    if (runLen >= 2) {
+      const d = digits[i];
+      const eligible =
+        mode === "any" ||
+        (mode === "specific" && d === targetDigit) ||
+        (mode === "odd" && d % 2 === 1) ||
+        (mode === "even" && d % 2 === 0);
+      if (eligible) {
+        const color = `hsl(${STREAK_COLORS[colorIdx % STREAK_COLORS.length]})`;
+        for (let k = i; k < j; k++) out[k] = color;
+        colorIdx++;
+      }
+    }
+    i = j;
+  }
+  return out;
+}
