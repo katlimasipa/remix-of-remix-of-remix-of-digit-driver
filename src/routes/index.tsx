@@ -379,18 +379,28 @@ function Dashboard() {
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-1.5">
-                {digits.map((d, i) => (
-                  <span
-                    key={i}
-                    className={`font-mono text-xs h-7 w-7 grid place-items-center rounded ${
-                      d === cfg.targetDigit || cfg.triggerMode === "any"
-                        ? "bg-primary/15 text-primary"
-                        : "bg-surface text-muted-foreground"
-                    }`}
-                  >
-                    {d}
-                  </span>
-                ))}
+                {digits.map((d, i) => {
+                  const hl = streakMap[i];
+                  return (
+                    <span
+                      key={i}
+                      className={`font-mono text-xs h-7 w-7 grid place-items-center rounded transition-colors ${
+                        hl ? "" : "bg-surface text-muted-foreground"
+                      }`}
+                      style={
+                        hl
+                          ? {
+                              backgroundColor: `hsl(${hl} / 0.18)`,
+                              color: `hsl(${hl})`,
+                              boxShadow: `inset 0 0 0 1px hsl(${hl} / 0.35)`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {d}
+                    </span>
+                  );
+                })}
                 {digits.length === 0 && (
                   <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
                 )}
