@@ -66,9 +66,9 @@ export async function showLocalNotification(payload: {
         icon: "/app-icon.png",
         badge: "/app-icon.png",
         requireInteraction: !!payload.requireInteraction,
-        vibrate: payload.vibrate ?? [80, 40, 80],
         data: { url: "/" },
-      });
+        ...({ vibrate: payload.vibrate ?? [80, 40, 80] } as Record<string, unknown>),
+      } as NotificationOptions);
       return;
     }
   } catch {
