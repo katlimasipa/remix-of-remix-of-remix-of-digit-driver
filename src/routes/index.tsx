@@ -449,8 +449,8 @@ function Dashboard() {
                   <tbody className="font-mono">
                     {s.trades.map((t) => (
                       <tr key={t.id} className="border-t border-border">
-                        <td className="py-2 pr-4 text-muted-foreground">
-                          {new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                        <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
+                          {formatDateTime(t.time)}
                         </td>
                         <td className="py-2 pr-4">{t.digit}</td>
                         <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
