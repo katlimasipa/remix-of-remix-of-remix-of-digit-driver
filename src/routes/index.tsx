@@ -5,9 +5,10 @@ import { useDerivAuth } from "@/hooks/useDerivAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
-import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff } from "lucide-react";
+import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save } from "lucide-react";
 import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
 import { useTradeNotifications } from "@/hooks/useTradeNotifications";
+import { SessionHistory, saveSession } from "@/components/SessionHistory";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -77,7 +78,34 @@ function Dashboard() {
     pendingTrade: false,
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
+  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
+  const sessionStartRef = useRef<number>(Date.now());
+
+  const handleEndSession = () => {
+    if (!s || s.totalTrades === 0) {
+      alert("No trades in this session yet.");
+      return;
+    }
+    saveSession({
+      id: crypto.randomUUID(),
+      accountId: activeAccount?.account_id ?? "unknown",
+      accountType: (activeAccount?.account_type === "real" ? "real" : "demo"),
+      startedAt: sessionStartRef.current,
+      endedAt: Date.now(),
+      pnl: s.pnl,
+      wins: s.wins,
+      losses: s.losses,
+      totalTrades: s.totalTrades,
+      stake: cfg.stake,
+      triggerMode: cfg.triggerMode,
+      targetDigit: cfg.targetDigit,
+      repetitionCount: cfg.repetitionCount,
+      currency: s.currency ?? "USD",
+    });
+    stop();
+    reset();
+    sessionStartRef.current = Date.now();
+  };
 
   // Keep bot configured with the active wsUrl
   useEffect(() => {
@@ -574,6 +602,26 @@ function Dashboard() {
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
 
+          <Divider />
+          <button
+            onClick={handleEndSession}
+            className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+            disabled={!s || s.totalTrades === 0}
+            title="Save the current session to history and reset stats"
+          >
+            <Save className="h-3.5 w-3.5" />
+            End & Save Session
+          </button>
+
+          <Divider />
+          <SessionHistory currentAccountId={activeAccount.account_id} />
+        </section>
+
+        {/* Mobile-only history tab: separate view of saved sessions */}
+        <section
+          className={`bg-background p-4 sm:p-5 ${mobileTab === "history" ? "" : "hidden"} lg:hidden`}
+        >
+          <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
       </main>
 
@@ -611,12 +659,13 @@ function Dashboard() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-4">
           {(
             [
               { id: "controls", label: "Controls", icon: Settings2 },
               { id: "live", label: "Live", icon: Activity },
               { id: "stats", label: "Stats", icon: BarChart3 },
+              { id: "history", label: "History", icon: History },
             ] as const
           ).map(({ id, label, icon: Icon }) => {
             const active = mobileTab === id;
@@ -711,14 +760,17 @@ function formatDateTime(t: number): string {
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// Palette of HSL color strings (cycled per distinct streak run in the visible strip).
+// Palette of HSL color strings (cycled per distinct streak run).
+// Each color is visually distinct so back-to-back streaks are easy to differentiate.
 const STREAK_COLORS = [
-  "var(--primary-hsl, 210 90% 60%)",
+  "190 90% 55%",  // cyan
   "38 92% 55%",   // amber
   "142 70% 45%",  // green
   "280 75% 65%",  // violet
   "0 80% 62%",    // red
-  "190 85% 50%",  // cyan
+  "210 90% 60%",  // blue
+  "50 95% 55%",   // yellow
+  "320 75% 60%",  // pink
 ];
 
 // digits[0] is most recent. Returns an array of same length with hsl color string or null per index.
