@@ -132,6 +132,18 @@ function Dashboard() {
   );
   const notifications = useTradeNotifications(accounts, s);
 
+  // Fire push notifications on bot start / stop events.
+  useEffect(() => {
+    const unsub = onEvent((e) => {
+      if (e.type === "bot_started" || e.type === "bot_stopped") {
+        notifications.notifyBotEvent(e);
+      }
+    });
+    return () => {
+      unsub?.();
+    };
+  }, [onEvent, notifications.notifyBotEvent]);
+
   if (authState === 'authenticating') {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
