@@ -124,6 +124,35 @@ export function useTradeNotifications(
     });
   }, [state?.error, state?.wins, state?.losses, permission, notifyAllDevices]);
 
+  const notifyBotEvent = useCallback(
+    (event: BotEvent) => {
+      if (permission !== "granted") return;
+      if (event.type === "bot_started") {
+        void notifyAllDevices({
+          title: "Bot started",
+          body: "SmrtTrdr is now running and will trade automatically.",
+          tag: `bot-started-${Date.now()}`,
+          vibrate: [60, 30, 60],
+        });
+      } else if (event.type === "bot_stopped") {
+        const reasonLabel =
+          event.reason === "stop_loss"
+            ? "Stop Loss hit"
+            : event.reason === "take_profit"
+              ? "Take Profit reached"
+              : "Stopped manually";
+        void notifyAllDevices({
+          title: "Bot stopped",
+          body: `${reasonLabel}. The bot is no longer trading.`,
+          tag: `bot-stopped-${Date.now()}`,
+          requireInteraction: event.reason !== "manual",
+          vibrate: [200, 80, 200],
+        });
+      }
+    },
+    [permission, notifyAllDevices],
+  );
+
   return {
     supported,
     permission,
@@ -131,5 +160,6 @@ export function useTradeNotifications(
     enabled: permission === "granted",
     denied: permission === "denied",
     requiresInstall: pushRequiresInstall(),
+    notifyBotEvent,
   };
 }
