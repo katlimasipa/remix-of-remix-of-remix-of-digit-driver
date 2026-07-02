@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BotState } from "@/lib/derivBot";
+import type { BotEvent, BotState } from "@/lib/derivBot";
 import type { DerivAccount } from "@deriv/core";
 import { notificationsSupported, pushRequiresInstall } from "@/lib/pwa";
 import {
