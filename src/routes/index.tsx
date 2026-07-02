@@ -57,7 +57,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount } = useDerivAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
+  const { state, cfg, setCfg, start, stop, reset, connect, disconnect, onEvent } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
@@ -107,13 +107,23 @@ function Dashboard() {
     sessionStartRef.current = Date.now();
   };
 
-  // Keep bot configured with the active wsUrl
+  // Keep bot configured with the latest wsUrl (fresh OTP for next reconnect).
+  // Do NOT disconnect on wsUrl refresh — that killed the bot on tab-change.
   useEffect(() => {
     setCfg((c) => ({ ...c, wsUrl }));
-    // If wsUrl changed, disconnect the old socket so the user can connect again
-    disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsUrl]);
+
+  // Only disconnect when the actual active account changes.
+  const prevAccountIdRef = useRef<string | null>(activeAccount?.account_id ?? null);
+  useEffect(() => {
+    const id = activeAccount?.account_id ?? null;
+    if (prevAccountIdRef.current && prevAccountIdRef.current !== id) {
+      disconnect();
+    }
+    prevAccountIdRef.current = id;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount?.account_id]);
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
   const streakMap = useMemo(
@@ -121,6 +131,23 @@ function Dashboard() {
     [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
   );
   const notifications = useTradeNotifications(accounts, s);
+
+  // Fire push notifications on bot start / stop events.
+  const notifyBotEventRef = useRef(notifications.notifyBotEvent);
+  useEffect(() => {
+    notifyBotEventRef.current = notifications.notifyBotEvent;
+  }, [notifications.notifyBotEvent]);
+  useEffect(() => {
+    const unsub = onEvent((e) => {
+      if (e.type === "bot_started" || e.type === "bot_stopped") {
+        notifyBotEventRef.current(e);
+      }
+    });
+    return () => {
+      unsub?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (authState === 'authenticating') {
     return (

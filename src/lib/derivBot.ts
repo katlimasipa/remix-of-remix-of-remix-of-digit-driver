@@ -47,7 +47,9 @@ export type BotState = {
 export type BotEvent =
   | { type: "trade_settled"; trade: Trade; pnl: number }
   | { type: "stop_loss"; pnl: number }
-  | { type: "take_profit"; pnl: number };
+  | { type: "take_profit"; pnl: number }
+  | { type: "bot_started" }
+  | { type: "bot_stopped"; reason: "manual" | "stop_loss" | "take_profit" };
 
 type Listener = (s: BotState) => void;
 type EventListener = (e: BotEvent) => void;
@@ -86,10 +88,12 @@ export class DerivBot {
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
   private reconnectTimer: number | null = null;
+  private pingTimer: number | null = null;
   private cooldown = 0;
   private streakDigit: number | null = null;
   private watchedContracts = new Set<string>();
   private settledContracts = new Set<string>();
+  private wasAuthorized = false;
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
@@ -149,15 +153,39 @@ export class DerivBot {
     this.ws = ws;
     ws.onopen = () => {
       this.patch({ connected: true, authorized: true });
+      this.wasAuthorized = true;
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
       this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
+      this.startHeartbeat();
     };
     ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
     ws.onclose = () => {
+      this.stopHeartbeat();
       this.patch({ connected: false, authorized: false });
-      if (this.state.running) this.scheduleReconnect();
+      // Auto-reconnect if we were previously connected (running OR just idle).
+      if (this.wasAuthorized) this.scheduleReconnect();
     };
     ws.onerror = () => this.patch({ error: "WebSocket error" });
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.pingTimer = window.setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ ping: 1 }));
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 20_000);
+  }
+
+  private stopHeartbeat() {
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
   }
 
   private scheduleReconnect() {
@@ -450,23 +478,27 @@ export class DerivBot {
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
 
     if (pnl <= -Math.abs(this.cfg.stopLoss)) {
-      this.stop();
+      this.stop("stop_loss");
       this.patch({ error: `Stop Loss hit (${pnl.toFixed(2)})` });
       this.fire({ type: "stop_loss", pnl });
     } else if (pnl >= Math.abs(this.cfg.takeProfit)) {
-      this.stop();
+      this.stop("take_profit");
       this.patch({ error: `Take Profit reached (${pnl.toFixed(2)})` });
       this.fire({ type: "take_profit", pnl });
     }
   }
 
   start() {
+    const wasRunning = this.state.running;
     this.patch({ running: true, error: null });
     if (!this.state.connected) this.connect();
+    if (!wasRunning) this.fire({ type: "bot_started" });
   }
 
-  stop() {
+  stop(reason: "manual" | "stop_loss" | "take_profit" = "manual") {
+    const wasRunning = this.state.running;
     this.patch({ running: false });
+    if (wasRunning) this.fire({ type: "bot_stopped", reason });
   }
 
   resetSession() {
@@ -485,7 +517,9 @@ export class DerivBot {
   }
 
   disconnect() {
+    this.wasAuthorized = false; // suppress auto-reconnect
     this.stop();
+    this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
