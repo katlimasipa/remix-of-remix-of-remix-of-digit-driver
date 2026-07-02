@@ -478,23 +478,27 @@ export class DerivBot {
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
 
     if (pnl <= -Math.abs(this.cfg.stopLoss)) {
-      this.stop();
+      this.stop("stop_loss");
       this.patch({ error: `Stop Loss hit (${pnl.toFixed(2)})` });
       this.fire({ type: "stop_loss", pnl });
     } else if (pnl >= Math.abs(this.cfg.takeProfit)) {
-      this.stop();
+      this.stop("take_profit");
       this.patch({ error: `Take Profit reached (${pnl.toFixed(2)})` });
       this.fire({ type: "take_profit", pnl });
     }
   }
 
   start() {
+    const wasRunning = this.state.running;
     this.patch({ running: true, error: null });
     if (!this.state.connected) this.connect();
+    if (!wasRunning) this.fire({ type: "bot_started" });
   }
 
-  stop() {
+  stop(reason: "manual" | "stop_loss" | "take_profit" = "manual") {
+    const wasRunning = this.state.running;
     this.patch({ running: false });
+    if (wasRunning) this.fire({ type: "bot_stopped", reason });
   }
 
   resetSession() {
