@@ -133,16 +133,21 @@ function Dashboard() {
   const notifications = useTradeNotifications(accounts, s);
 
   // Fire push notifications on bot start / stop events.
+  const notifyBotEventRef = useRef(notifications.notifyBotEvent);
+  useEffect(() => {
+    notifyBotEventRef.current = notifications.notifyBotEvent;
+  }, [notifications.notifyBotEvent]);
   useEffect(() => {
     const unsub = onEvent((e) => {
       if (e.type === "bot_started" || e.type === "bot_stopped") {
-        notifications.notifyBotEvent(e);
+        notifyBotEventRef.current(e);
       }
     });
     return () => {
       unsub?.();
     };
-  }, [onEvent, notifications.notifyBotEvent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (authState === 'authenticating') {
     return (
