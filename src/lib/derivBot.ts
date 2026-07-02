@@ -88,10 +88,12 @@ export class DerivBot {
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
   private reconnectTimer: number | null = null;
+  private pingTimer: number | null = null;
   private cooldown = 0;
   private streakDigit: number | null = null;
   private watchedContracts = new Set<string>();
   private settledContracts = new Set<string>();
+  private wasAuthorized = false;
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
