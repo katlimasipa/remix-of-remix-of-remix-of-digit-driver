@@ -517,7 +517,9 @@ export class DerivBot {
   }
 
   disconnect() {
+    this.wasAuthorized = false; // suppress auto-reconnect
     this.stop();
+    this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
