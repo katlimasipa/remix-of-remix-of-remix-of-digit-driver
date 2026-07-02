@@ -47,7 +47,9 @@ export type BotState = {
 export type BotEvent =
   | { type: "trade_settled"; trade: Trade; pnl: number }
   | { type: "stop_loss"; pnl: number }
-  | { type: "take_profit"; pnl: number };
+  | { type: "take_profit"; pnl: number }
+  | { type: "bot_started" }
+  | { type: "bot_stopped"; reason: "manual" | "stop_loss" | "take_profit" };
 
 type Listener = (s: BotState) => void;
 type EventListener = (e: BotEvent) => void;
