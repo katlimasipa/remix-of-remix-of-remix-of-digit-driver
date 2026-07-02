@@ -153,15 +153,39 @@ export class DerivBot {
     this.ws = ws;
     ws.onopen = () => {
       this.patch({ connected: true, authorized: true });
+      this.wasAuthorized = true;
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
       this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
+      this.startHeartbeat();
     };
     ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
     ws.onclose = () => {
+      this.stopHeartbeat();
       this.patch({ connected: false, authorized: false });
-      if (this.state.running) this.scheduleReconnect();
+      // Auto-reconnect if we were previously connected (running OR just idle).
+      if (this.wasAuthorized) this.scheduleReconnect();
     };
     ws.onerror = () => this.patch({ error: "WebSocket error" });
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.pingTimer = window.setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ ping: 1 }));
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 20_000);
+  }
+
+  private stopHeartbeat() {
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
   }
 
   private scheduleReconnect() {
