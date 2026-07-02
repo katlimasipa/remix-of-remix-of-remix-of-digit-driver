@@ -57,7 +57,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount } = useDerivAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect, disconnect } = useDerivBot();
+  const { state, cfg, setCfg, start, stop, reset, connect, disconnect, onEvent } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
