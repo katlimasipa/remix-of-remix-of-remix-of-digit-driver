@@ -122,7 +122,7 @@ export function SessionHistory({ currentAccountId }: { currentAccountId?: string
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="grid grid-cols-4 gap-2 text-center auto-rows-fr">
         <TotalCell
           label="Net P/L"
           value={`${totals.pnl >= 0 ? "+" : ""}${totals.pnl.toFixed(2)}`}
