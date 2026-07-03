@@ -150,7 +150,8 @@ export class DerivBot {
     }
   }
 
-  connect() {
+  connect(wsUrl?: string) {
+    if (wsUrl) this.cfg = { ...this.cfg, wsUrl };
     if (
       this.ws &&
       (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)

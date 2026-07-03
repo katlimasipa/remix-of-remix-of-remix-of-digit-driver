@@ -87,7 +87,7 @@ export function useDerivAuth(): UseAuthReturn {
   const [wsUrl, setWsUrl] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const initRef = useRef(false);
-  const activeAccountIdRef = useRef<string | null>(null);
+  const activeAccountIdRef = useRef<string | null>(activeAccountId);
   const tabHiddenAtRef = useRef<number | null>(null);
 
   const fetchOTPUrl = useCallback(async (accountId: string, authInfo: AuthInfo): Promise<string> => {
@@ -200,10 +200,8 @@ export function useDerivAuth(): UseAuthReturn {
       try {
         const otpUrl = await fetchOTPUrl(accountId, authInfo);
         setWsUrl(otpUrl);
-      } catch {
-        clearAllAuthData();
-        setAuthState('unauthenticated');
-        setWsUrl(undefined);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Connection refresh failed');
       }
     };
 

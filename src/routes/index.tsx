@@ -127,8 +127,8 @@ function Dashboard() {
       if (reconnectingRef.current || !shouldStayConnectedRef.current) return;
       reconnectingRef.current = true;
       try {
-        await refreshWebSocketUrl();
-        window.setTimeout(() => connect(), 0);
+        const refreshedUrl = await refreshWebSocketUrl();
+        if (refreshedUrl) connect(refreshedUrl);
       } catch {
         /* keep the current session instead of logging out on a transient refresh failure */
       } finally {

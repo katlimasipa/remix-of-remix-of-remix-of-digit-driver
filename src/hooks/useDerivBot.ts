@@ -36,7 +36,7 @@ export function useDerivBot() {
     state,
     cfg,
     setCfg,
-    connect: () => botRef.current?.connect(),
+    connect: (wsUrl?: string) => botRef.current?.connect(wsUrl),
     start: () => botRef.current?.start(),
     stop: () => botRef.current?.stop(),
     reset: () => botRef.current?.resetSession(),
