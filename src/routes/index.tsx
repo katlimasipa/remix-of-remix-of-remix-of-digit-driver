@@ -57,7 +57,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect, disconnect, onEvent } = useDerivBot();
+  const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
@@ -117,7 +117,7 @@ function Dashboard() {
   }, [wsUrl]);
 
   useEffect(() => {
-    shouldStayConnectedRef.current = Boolean(s.connected || s.running || s.authorized);
+    if (s.connected || s.running || s.authorized) shouldStayConnectedRef.current = true;
   }, [s.connected, s.running, s.authorized]);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ function Dashboard() {
       reconnectingRef.current = true;
       try {
         const refreshedUrl = await refreshWebSocketUrl();
-        if (refreshedUrl) connect(refreshedUrl);
+        if (refreshedUrl) await recoverConnection(refreshedUrl);
       } catch {
         /* keep the current session instead of logging out on a transient refresh failure */
       } finally {
@@ -156,6 +156,7 @@ function Dashboard() {
   useEffect(() => {
     const id = activeAccount?.account_id ?? null;
     if (prevAccountIdRef.current && prevAccountIdRef.current !== id) {
+      shouldStayConnectedRef.current = false;
       disconnect();
     }
     prevAccountIdRef.current = id;
@@ -277,6 +278,7 @@ function Dashboard() {
           
           <button
             onClick={() => {
+              shouldStayConnectedRef.current = false;
               disconnect();
               logout();
             }}

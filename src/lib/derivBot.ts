@@ -200,6 +200,43 @@ export class DerivBot {
     };
   }
 
+  async recoverConnection(wsUrl?: string) {
+    if (wsUrl) this.cfg = { ...this.cfg, wsUrl };
+    this.intentionalDisconnect = false;
+
+    if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+      this.forceReconnect();
+      return;
+    }
+
+    if (this.ws.readyState === WebSocket.CONNECTING) return;
+
+    try {
+      await this.send({ ping: 1 }, 3500);
+    } catch {
+      this.forceReconnect();
+    }
+  }
+
+  private forceReconnect(wsUrl?: string) {
+    if (wsUrl) this.cfg = { ...this.cfg, wsUrl };
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.stopHeartbeat();
+    const staleSocket = this.ws;
+    this.ws = null;
+    try {
+      staleSocket?.close();
+    } catch {
+      /* ignore */
+    }
+    this.pending.clear();
+    this.patch({ connected: false, authorized: false, error: null });
+    this.connect();
+  }
+
   private startHeartbeat() {
     this.stopHeartbeat();
     this.pingTimer = window.setInterval(() => {
@@ -231,7 +268,7 @@ export class DerivBot {
     }, reconnectDelay);
   }
 
-  private send(payload: any): Promise<any> {
+  private send(payload: any, timeoutMs = 15000): Promise<any> {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         reject(new Error("WS not open"));
@@ -245,7 +282,7 @@ export class DerivBot {
           this.pending.delete(req_id);
           reject(new Error("Request timeout"));
         }
-      }, 15000);
+      }, timeoutMs);
     });
   }
 
