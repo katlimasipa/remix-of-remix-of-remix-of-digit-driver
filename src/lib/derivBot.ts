@@ -94,6 +94,8 @@ export class DerivBot {
   private watchedContracts = new Set<string>();
   private settledContracts = new Set<string>();
   private wasAuthorized = false;
+  private intentionalDisconnect = true;
+  private reconnectAttempts = 0;
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
@@ -135,7 +137,17 @@ export class DerivBot {
   }
 
   updateConfig(p: Partial<BotConfig>) {
+    const previousUrl = this.cfg.wsUrl;
     this.cfg = { ...this.cfg, ...p };
+    if (
+      p.wsUrl &&
+      p.wsUrl !== previousUrl &&
+      this.wasAuthorized &&
+      !this.intentionalDisconnect &&
+      (!this.ws || this.ws.readyState === WebSocket.CLOSED)
+    ) {
+      this.scheduleReconnect(0);
+    }
   }
 
   connect() {
@@ -148,24 +160,43 @@ export class DerivBot {
       this.patch({ error: "Missing WebSocket URL" });
       return;
     }
+    this.intentionalDisconnect = false;
     this.patch({ error: null });
     const ws = new WebSocket(this.cfg.wsUrl);
     this.ws = ws;
     ws.onopen = () => {
+      if (this.ws !== ws) return;
       this.patch({ connected: true, authorized: true });
       this.wasAuthorized = true;
+      this.reconnectAttempts = 0;
       this.send({ balance: 1, subscribe: 1 }).catch(() => {});
       this.send({ ticks: SYMBOL, subscribe: 1 }).catch(() => {});
       this.startHeartbeat();
     };
-    ws.onmessage = (e) => this.onMessage(JSON.parse(e.data));
+    ws.onmessage = (e) => {
+      if (this.ws !== ws) return;
+      try {
+        this.onMessage(JSON.parse(e.data));
+      } catch {
+        /* ignore malformed frames */
+      }
+    };
     ws.onclose = () => {
+      if (this.ws !== ws) return;
       this.stopHeartbeat();
+      this.ws = null;
       this.patch({ connected: false, authorized: false });
       // Auto-reconnect if we were previously connected (running OR just idle).
-      if (this.wasAuthorized) this.scheduleReconnect();
+      if (this.wasAuthorized && !this.intentionalDisconnect) this.scheduleReconnect();
     };
-    ws.onerror = () => this.patch({ error: "WebSocket error" });
+    ws.onerror = () => {
+      if (this.ws !== ws) return;
+      if (this.wasAuthorized && !this.intentionalDisconnect) {
+        this.patch({ error: null });
+      } else {
+        this.patch({ error: "WebSocket connection failed" });
+      }
+    };
   }
 
   private startHeartbeat() {
@@ -188,12 +219,15 @@ export class DerivBot {
     }
   }
 
-  private scheduleReconnect() {
+  private scheduleReconnect(delay?: number) {
+    if (this.intentionalDisconnect) return;
     if (this.reconnectTimer) return;
+    const reconnectDelay = delay ?? Math.min(30_000, 1000 * 2 ** Math.min(this.reconnectAttempts, 5));
+    this.reconnectAttempts += 1;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 2000);
+    }, reconnectDelay);
   }
 
   private send(payload: any): Promise<any> {
@@ -490,6 +524,7 @@ export class DerivBot {
 
   start() {
     const wasRunning = this.state.running;
+    this.intentionalDisconnect = false;
     this.patch({ running: true, error: null });
     if (!this.state.connected) this.connect();
     if (!wasRunning) this.fire({ type: "bot_started" });
@@ -518,6 +553,8 @@ export class DerivBot {
 
   disconnect() {
     this.wasAuthorized = false; // suppress auto-reconnect
+    this.intentionalDisconnect = true;
+    this.reconnectAttempts = 0;
     this.stop();
     this.stopHeartbeat();
     if (this.reconnectTimer) {
