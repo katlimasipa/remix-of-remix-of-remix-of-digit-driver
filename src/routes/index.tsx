@@ -344,7 +344,7 @@ function Dashboard() {
 
           <button
             className="btn-secondary w-full"
-            onClick={connect}
+            onClick={() => connect()}
             disabled={!wsUrl || s?.connected}
           >
             {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect Bot"}
