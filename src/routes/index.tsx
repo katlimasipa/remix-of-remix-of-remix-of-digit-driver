@@ -261,14 +261,48 @@ function Dashboard() {
 
           <div className="space-y-2">
             <span className="text-[11px] text-muted-foreground">Active Account</span>
-            <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
-              {activeAccount.account_id}
-            </div>
+            {accounts.length > 1 ? (
+              <select
+                value={activeAccount.account_id}
+                onChange={(e) => switchAccount(e.target.value)}
+                className={`input font-mono text-sm font-medium w-full ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : ''}`}
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.account_id} value={acc.account_id}>
+                    {acc.account_id} · {acc.account_type === 'demo' ? 'Demo' : 'Real'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
+                {activeAccount.account_id} · {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
+              </div>
+            )}
             {activeAccount.account_type === 'real' && (
               <div className="text-[11px] text-bear">
                 Live trading uses real funds. Trade at your own risk.
               </div>
             )}
+            <div className="flex gap-1 lg:hidden">
+              {(['demo','real'] as const).map((t) => {
+                const acc = accounts.find(a => a.account_type === t);
+                const isActive = activeAccount.account_type === t;
+                return (
+                  <button
+                    key={t}
+                    disabled={!acc || isActive}
+                    onClick={() => acc && switchAccount(acc.account_id)}
+                    className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                      isActive
+                        ? (t === 'real' ? 'bg-bear/15 border-bear/30 text-bear' : 'bg-primary/15 border-primary/30 text-primary')
+                        : 'border-border text-muted-foreground hover:text-foreground disabled:opacity-40'
+                    }`}
+                  >
+                    {t === 'demo' ? 'Demo' : 'Real'}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button

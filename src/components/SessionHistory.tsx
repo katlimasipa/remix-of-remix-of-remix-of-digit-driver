@@ -133,67 +133,50 @@ export function SessionHistory({ currentAccountId }: { currentAccountId?: string
         <TotalCell label="Win %" value={`${winRate}%`} />
       </div>
 
-      <div className="rounded-md border border-border bg-surface/40 max-h-[360px] overflow-y-auto">
+      <div className="rounded-md border border-border bg-surface/40 max-h-[360px] overflow-y-auto overflow-x-hidden">
         {filtered.length === 0 ? (
           <div className="p-6 text-center text-xs text-muted-foreground">
             No {tab} sessions saved yet. End & Save a session to see it here.
           </div>
         ) : (
-          <table className="w-full text-xs font-mono">
-            <thead className="text-[10px] uppercase tracking-wider text-muted-foreground bg-surface-2/60 sticky top-0">
-              <tr>
-                <th className="px-2 py-2 text-left font-medium">Date</th>
-                <th className="px-2 py-2 text-left font-medium">Dur</th>
-                <th className="px-2 py-2 text-right font-medium">Trades</th>
-                <th className="px-2 py-2 text-right font-medium">W/L</th>
-                <th className="px-2 py-2 text-right font-medium">P/L</th>
-                <th className="px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => {
-                const isCurrent = s.accountId === currentAccountId;
-                const rate = s.totalTrades
-                  ? Math.round((s.wins / s.totalTrades) * 100)
-                  : 0;
-                return (
-                  <tr key={s.id} className="border-t border-border">
-                    <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">
-                      {fmtDate(s.endedAt)}
-                      {isCurrent && (
-                        <span className="ml-1 text-primary text-[9px]">•</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2 text-muted-foreground whitespace-nowrap">
-                      {fmtDuration(s.endedAt - s.startedAt)}
-                    </td>
-                    <td className="px-2 py-2 text-right">{s.totalTrades}</td>
-                    <td className="px-2 py-2 text-right">
-                      <span className="text-bull">{s.wins}</span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-bear">{s.losses}</span>
-                      <span className="text-muted-foreground"> ({rate}%)</span>
-                    </td>
-                    <td
-                      className={`px-2 py-2 text-right ${s.pnl >= 0 ? "text-bull" : "text-bear"}`}
-                    >
-                      {s.pnl >= 0 ? "+" : ""}
-                      {s.pnl.toFixed(2)}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <button
-                        onClick={() => deleteSession(s.id)}
-                        className="text-muted-foreground hover:text-bear transition-colors"
-                        title="Delete session"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <ul className="divide-y divide-border">
+            {filtered.map((s) => {
+              const isCurrent = s.accountId === currentAccountId;
+              const rate = s.totalTrades
+                ? Math.round((s.wins / s.totalTrades) * 100)
+                : 0;
+              return (
+                <li key={s.id} className="p-2.5 flex items-center gap-2 font-mono text-xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span>{fmtDate(s.endedAt)}</span>
+                      <span>·</span>
+                      <span>{fmtDuration(s.endedAt - s.startedAt)}</span>
+                      {isCurrent && <span className="text-primary">•</span>}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="text-foreground">{s.totalTrades} trades</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-bull">{s.wins}W</span>
+                      <span className="text-bear">{s.losses}L</span>
+                      <span className="text-muted-foreground">({rate}%)</span>
+                    </div>
+                  </div>
+                  <div className={`text-right shrink-0 font-semibold ${s.pnl >= 0 ? "text-bull" : "text-bear"}`}>
+                    {s.pnl >= 0 ? "+" : ""}
+                    {s.pnl.toFixed(2)}
+                  </div>
+                  <button
+                    onClick={() => deleteSession(s.id)}
+                    className="shrink-0 text-muted-foreground hover:text-bear transition-colors p-1"
+                    title="Delete session"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
