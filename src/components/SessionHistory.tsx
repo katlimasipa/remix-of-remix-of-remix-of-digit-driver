@@ -204,7 +204,7 @@ function TotalCell({
   accent?: "bull" | "bear";
 }) {
   return (
-    <div className="rounded-md border border-border bg-surface-2/60 p-2 min-w-0 flex flex-col justify-center h-full">
+    <div className="rounded-md border border-border bg-surface-2/60 p-2 min-w-0 min-h-[54px] flex flex-col justify-center h-full">
       <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-tight">{label}</div>
       <div
         className={`font-mono text-xs sm:text-sm font-semibold leading-tight break-words ${
