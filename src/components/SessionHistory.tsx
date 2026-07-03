@@ -122,7 +122,7 @@ export function SessionHistory({ currentAccountId }: { currentAccountId?: string
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="grid grid-cols-4 gap-2 text-center auto-rows-fr">
         <TotalCell
           label="Net P/L"
           value={`${totals.pnl >= 0 ? "+" : ""}${totals.pnl.toFixed(2)}`}
@@ -204,10 +204,10 @@ function TotalCell({
   accent?: "bull" | "bear";
 }) {
   return (
-    <div className="rounded-md border border-border bg-surface-2/60 p-2">
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-md border border-border bg-surface-2/60 p-2 min-w-0 min-h-[54px] flex flex-col justify-center h-full">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground leading-tight">{label}</div>
       <div
-        className={`font-mono text-sm font-semibold ${
+        className={`font-mono text-xs sm:text-sm font-semibold leading-tight break-words ${
           accent === "bull" ? "text-bull" : accent === "bear" ? "text-bear" : ""
         }`}
       >
