@@ -72,6 +72,13 @@ export function getAuthInfo(): AuthInfo | null {
   return authInfo;
 }
 
+export function getStoredAuthInfo(): AuthInfo | null {
+  const raw = localStorage.getItem(AUTH_INFO_KEY);
+  if (!raw) return null;
+
+  return JSON.parse(raw);
+}
+
 export function clearAuthInfo(): void {
   localStorage.removeItem(AUTH_INFO_KEY);
 }

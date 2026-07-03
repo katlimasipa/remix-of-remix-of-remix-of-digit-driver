@@ -14,6 +14,7 @@ import {
   setAccountType,
   clearAllAuthData,
   parseReferralLink,
+  getStoredAuthInfo,
 } from '@deriv/core';
 import type { AuthInfo, DerivAccount, AuthState, AuthConfig } from '@deriv/core';
 
@@ -57,7 +58,18 @@ export interface UseAuthReturn {
   signUp: () => Promise<void>;
   logout: () => void;
   switchAccount: (accountId: string) => Promise<void>;
+  refreshWebSocketUrl: () => Promise<string | undefined>;
   error: string | null;
+}
+
+async function getUsableAuthInfo(): Promise<AuthInfo | null> {
+  const current = getAuthInfo();
+  if (current) return current;
+
+  const stored = getStoredAuthInfo();
+  if (!stored?.refresh_token) return null;
+
+  return refreshAccessToken(stored.refresh_token, getAuthConfig().clientId);
 }
 
 export function useDerivAuth(): UseAuthReturn {
@@ -75,7 +87,7 @@ export function useDerivAuth(): UseAuthReturn {
   const [wsUrl, setWsUrl] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const initRef = useRef(false);
-  const activeAccountIdRef = useRef<string | null>(null);
+  const activeAccountIdRef = useRef<string | null>(activeAccountId);
   const tabHiddenAtRef = useRef<number | null>(null);
 
   const fetchOTPUrl = useCallback(async (accountId: string, authInfo: AuthInfo): Promise<string> => {
@@ -120,7 +132,7 @@ export function useDerivAuth(): UseAuthReturn {
         return;
       }
 
-      const storedAuth = getAuthInfo();
+      const storedAuth = getStoredAuthInfo();
       if (storedAuth) {
         if (storedAuth.expires_at && Date.now() / 1000 > storedAuth.expires_at) {
           try {
@@ -182,16 +194,14 @@ export function useDerivAuth(): UseAuthReturn {
       tabHiddenAtRef.current = null;
 
       const accountId = activeAccountIdRef.current;
-      const authInfo = getAuthInfo();
+      const authInfo = await getUsableAuthInfo();
       if (!authInfo || !accountId) return;
 
       try {
         const otpUrl = await fetchOTPUrl(accountId, authInfo);
         setWsUrl(otpUrl);
-      } catch {
-        clearAllAuthData();
-        setAuthState('unauthenticated');
-        setWsUrl(undefined);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Connection refresh failed');
       }
     };
 
@@ -217,7 +227,7 @@ export function useDerivAuth(): UseAuthReturn {
   }, []);
 
   const switchAccount = useCallback(async (accountId: string) => {
-    const authInfo = getAuthInfo();
+    const authInfo = await getUsableAuthInfo();
     if (!authInfo) return;
 
     try {
@@ -231,6 +241,23 @@ export function useDerivAuth(): UseAuthReturn {
       setError(err instanceof Error ? err.message : 'Account switch failed');
     }
   }, [fetchOTPUrl, accounts]);
+
+  const refreshWebSocketUrl = useCallback(async () => {
+    const accountId = activeAccountIdRef.current;
+    const authInfo = await getUsableAuthInfo();
+    if (!authInfo || !accountId) return undefined;
+
+    try {
+      const otpUrl = await fetchOTPUrl(accountId, authInfo);
+      setWsUrl(otpUrl);
+      setAuthState('authenticated');
+      setError(null);
+      return otpUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connection refresh failed');
+      throw err;
+    }
+  }, [fetchOTPUrl]);
 
   const activeAccount = accounts.find((acc) => acc.account_id === activeAccountId) ?? accounts[0] ?? null;
 
@@ -246,6 +273,7 @@ export function useDerivAuth(): UseAuthReturn {
     signUp,
     logout,
     switchAccount,
+    refreshWebSocketUrl,
     error,
   };
 }

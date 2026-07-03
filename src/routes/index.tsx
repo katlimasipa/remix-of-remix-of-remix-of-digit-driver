@@ -56,8 +56,8 @@ function useAnimatedNumber(value: number, duration = 400) {
 }
 
 function Dashboard() {
-  const { authState, accounts, activeAccount, wsUrl, logout, switchAccount } = useDerivAuth();
-  const { state, cfg, setCfg, start, stop, reset, connect, disconnect, onEvent } = useDerivBot();
+  const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
+  const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
   const s = state ?? {
     connected: false,
     running: false,
@@ -80,6 +80,8 @@ function Dashboard() {
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
   const sessionStartRef = useRef<number>(Date.now());
+  const shouldStayConnectedRef = useRef(false);
+  const reconnectingRef = useRef(false);
 
   const handleEndSession = () => {
     if (!s || s.totalTrades === 0) {
@@ -114,11 +116,47 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsUrl]);
 
+  useEffect(() => {
+    if (s.connected || s.running || s.authorized) shouldStayConnectedRef.current = true;
+  }, [s.connected, s.running, s.authorized]);
+
+  useEffect(() => {
+    if (authState !== 'authenticated') return;
+
+    const restoreConnection = async () => {
+      if (reconnectingRef.current || !shouldStayConnectedRef.current) return;
+      reconnectingRef.current = true;
+      try {
+        const refreshedUrl = await refreshWebSocketUrl();
+        if (refreshedUrl) await recoverConnection(refreshedUrl);
+      } catch {
+        /* keep the current session instead of logging out on a transient refresh failure */
+      } finally {
+        reconnectingRef.current = false;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void restoreConnection();
+    };
+
+    window.addEventListener('focus', restoreConnection);
+    window.addEventListener('online', restoreConnection);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', restoreConnection);
+      window.removeEventListener('online', restoreConnection);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authState, refreshWebSocketUrl]);
+
   // Only disconnect when the actual active account changes.
   const prevAccountIdRef = useRef<string | null>(activeAccount?.account_id ?? null);
   useEffect(() => {
     const id = activeAccount?.account_id ?? null;
     if (prevAccountIdRef.current && prevAccountIdRef.current !== id) {
+      shouldStayConnectedRef.current = false;
       disconnect();
     }
     prevAccountIdRef.current = id;
@@ -240,6 +278,7 @@ function Dashboard() {
           
           <button
             onClick={() => {
+              shouldStayConnectedRef.current = false;
               disconnect();
               logout();
             }}
@@ -307,7 +346,7 @@ function Dashboard() {
 
           <button
             className="btn-secondary w-full"
-            onClick={connect}
+            onClick={() => connect()}
             disabled={!wsUrl || s?.connected}
           >
             {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect Bot"}
