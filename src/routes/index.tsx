@@ -5,10 +5,11 @@ import { useDerivAuth } from "@/hooks/useDerivAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
-import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save } from "lucide-react";
+import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save, Sun, Moon } from "lucide-react";
 import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
 import { useTradeNotifications } from "@/hooks/useTradeNotifications";
 import { SessionHistory, saveSession } from "@/components/SessionHistory";
+import { useTheme } from "@/hooks/useTheme";
 
 export const Route = createFileRoute("/")({
   head: () => ({
