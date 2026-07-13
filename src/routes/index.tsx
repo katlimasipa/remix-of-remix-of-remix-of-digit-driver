@@ -5,10 +5,11 @@ import { useDerivAuth } from "@/hooks/useDerivAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
-import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save } from "lucide-react";
+import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save, Sun, Moon } from "lucide-react";
 import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
 import { useTradeNotifications } from "@/hooks/useTradeNotifications";
 import { SessionHistory, saveSession } from "@/components/SessionHistory";
+import { useTheme } from "@/hooks/useTheme";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,6 +59,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
   const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
+  const { theme, toggle: toggleTheme } = useTheme();
   const s = state ?? {
     connected: false,
     running: false,
@@ -275,6 +277,15 @@ function Dashboard() {
               )}
             </button>
           )}
+          
+          <button
+            onClick={toggleTheme}
+            className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
           
           <button
             onClick={() => {
