@@ -93,7 +93,7 @@ export function useTradeNotifications(
 
   // Trade won/lost alerts.
   useEffect(() => {
-    if (permission !== "granted" || !state?.trades) return;
+    if (!state?.trades) return;
     for (const t of state.trades) {
       if (t.status === "open") continue;
       if (seenTradesRef.current.has(t.id)) continue;
