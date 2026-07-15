@@ -1,7 +1,7 @@
 // PWA registration with Lovable preview guard.
 // VAPID public key (safe to expose to the browser).
 export const VAPID_PUBLIC_KEY =
-  "BG4XSicB0p3O8ar24xEE3E1lPMigu4Jw8FlpxWNp4MDBr8nuEo7Sn24tvrSBo2b3MMNrLMeuXABlspwD8XFsj9U";
+  "BBylyccuMFUplQBEl3J7m4CxBgb2NzdG5HpjnAO3pc5QbvHAyEVXa0emIiA-RA10eX-JeUnY5DGpNbJANWOyfLw";
 
 function isPreviewHost(): boolean {
   if (typeof window === "undefined") return true;
