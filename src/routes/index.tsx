@@ -413,7 +413,7 @@ function Dashboard() {
                     : cfg.triggerMode === "even"
                       ? "Trades when an even digit repeats N times."
                       : cfg.triggerMode === "th_dpst"
-                        ? "Runs one trade of each strategy in order (Specific → Any → XXYYY → XXXYY → Odd → Even) then repeats until stop."
+                        ? "Runs one trade of each strategy in a random order per cycle, then repeats."
                         : "Trades when the target digit repeats N times."}
           </p>
           <div className="grid grid-cols-2 gap-3">
