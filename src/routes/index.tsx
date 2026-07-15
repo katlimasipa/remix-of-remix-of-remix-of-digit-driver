@@ -379,6 +379,7 @@ function Dashboard() {
               <option value="xxxyy">XXXYY = Z</option>
               <option value="odd">Odd reps</option>
               <option value="even">Even reps</option>
+              <option value="th_dpst">TH DPST Strtgy (cycle all)</option>
             </select>
           </Field>
           <p className="text-[10px] text-muted-foreground/80 -mt-2">
@@ -392,7 +393,9 @@ function Dashboard() {
                     ? "Trades when an odd digit repeats N times."
                     : cfg.triggerMode === "even"
                       ? "Trades when an even digit repeats N times."
-                      : "Trades when the target digit repeats N times."}
+                      : cfg.triggerMode === "th_dpst"
+                        ? "Runs one trade of each strategy in order (Specific → Any → XXYYY → XXXYY → Odd → Even) then repeats until stop."
+                        : "Trades when the target digit repeats N times."}
           </p>
           <div className="grid grid-cols-2 gap-3">
             {cfg.triggerMode === "specific" && (
