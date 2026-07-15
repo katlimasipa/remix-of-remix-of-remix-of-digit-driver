@@ -429,7 +429,7 @@ function Dashboard() {
                   <SelectContent>
                     {Array.from({ length: 10 }).map((_, i) => (
                       <SelectItem key={i} value={i.toString()}>
-                        {i}
+                        {i.toString()}
                       </SelectItem>
                     ))}
                   </SelectContent>
