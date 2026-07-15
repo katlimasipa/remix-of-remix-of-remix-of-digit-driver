@@ -117,7 +117,6 @@ export function useTradeNotifications(
     const isTP = err.startsWith("Take Profit reached");
     if (!isSL && !isTP) return;
     lastRiskErrRef.current = err;
-    if (permission !== "granted") return;
     void notifyAllDevices({
       title: isTP ? "Take Profit reached" : "Stop Loss hit",
       body: `${err} · Session ended · ${state?.wins ?? 0}W / ${state?.losses ?? 0}L`,
