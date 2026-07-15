@@ -107,6 +107,12 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
+  private cycleIndex = 0;
+
+  private getEffectiveMode(): Exclude<TriggerMode, "th_dpst"> {
+    if (this.cfg.triggerMode !== "th_dpst") return this.cfg.triggerMode;
+    return TH_DPST_CYCLE[this.cycleIndex % TH_DPST_CYCLE.length];
+  }
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
