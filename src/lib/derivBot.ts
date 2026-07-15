@@ -1,7 +1,18 @@
 // Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100
 // Uses OAuth WebSocket URL with OTP from @deriv/core.
 
-export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even";
+export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even" | "th_dpst";
+
+// TH DPST Strtgy cycles through these six sub-strategies, one trade per step,
+// then loops back to the beginning until stop-loss / take-profit / manual stop.
+const TH_DPST_CYCLE: Exclude<TriggerMode, "th_dpst">[] = [
+  "specific",
+  "any",
+  "xxyyy",
+  "xxxyy",
+  "odd",
+  "even",
+];
 
 export type BotConfig = {
   wsUrl: string | undefined;
