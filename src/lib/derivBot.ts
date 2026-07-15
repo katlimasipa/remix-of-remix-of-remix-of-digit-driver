@@ -37,6 +37,7 @@ export type Trade = {
   payout?: number;
   profit?: number;
   status: "open" | "won" | "lost";
+  mode: TriggerMode;
 };
 
 export type BotState = {
@@ -57,7 +58,7 @@ export type BotState = {
   totalTrades: number;
   error: string | null;
   pendingTrade: boolean;
-  effectiveMode: TriggerMode;
+  remainingCycle: Exclude<TriggerMode, "th_dpst">[];
 };
 
 export type BotEvent =
@@ -100,7 +101,7 @@ export class DerivBot {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
-    effectiveMode: "specific",
+    remainingCycle: [...TH_DPST_CYCLE],
   };
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
@@ -113,24 +114,21 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
-  private cycleIndex = 0;
-  private currentCycle: Exclude<TriggerMode, "th_dpst">[] = [...TH_DPST_CYCLE];
 
-  private shuffleCycle() {
-    for (let i = this.currentCycle.length - 1; i > 0; i--) {
+  private shuffleArray<T>(array: T[]): T[] {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [this.currentCycle[i], this.currentCycle[j]] = [this.currentCycle[j], this.currentCycle[i]];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-  }
-
-  private getEffectiveMode(): Exclude<TriggerMode, "th_dpst"> {
-    if (this.cfg.triggerMode !== "th_dpst") return this.cfg.triggerMode;
-    return this.currentCycle[this.cycleIndex];
+    return arr;
   }
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
-    this.shuffleCycle();
+    if (cfg.triggerMode === "th_dpst") {
+      this.state.remainingCycle = this.shuffleArray(TH_DPST_CYCLE);
+    }
   }
 
   subscribe(fn: Listener) {
@@ -357,120 +355,99 @@ export class DerivBot {
     const tick = { price, digit, time: Date.now() };
     const ticks = [tick, ...this.state.ticks].slice(0, 60);
 
+    // Universal streak: track consecutive runs of the same digit
     let streak = this.state.streak;
-    let streakDigit = this.state.streakDigit;
-    let xxyyyTrigger = false;
-    let xxyyyBarrier: number | null = null;
-    let xxxyyTrigger = false;
-    let xxxyyBarrier: number | null = null;
-
-    const mode = this.getEffectiveMode();
-    this.patch({ effectiveMode: mode });
-
-    if (mode === "any") {
-      if (this.streakDigit === digit) streak += 1;
-      else {
-        this.streakDigit = digit;
-        streak = 1;
-      }
-      streakDigit = digit;
-    } else if (mode === "odd" || mode === "even") {
-      const wantOdd = mode === "odd";
-      const matchesParity = wantOdd ? digit % 2 === 1 : digit % 2 === 0;
-      if (!matchesParity) {
-        this.streakDigit = null;
-        streak = 0;
-        streakDigit = null;
-      } else if (this.streakDigit === digit) {
-        streak += 1;
-        streakDigit = digit;
-      } else {
-        this.streakDigit = digit;
-        streak = 1;
-        streakDigit = digit;
-      }
-    } else if (mode === "xxyyy") {
-      if (ticks.length >= 5) {
-        const d0 = ticks[0].digit;
-        const d1 = ticks[1].digit;
-        const d2 = ticks[2].digit;
-        const d3 = ticks[3].digit;
-        const d4 = ticks[4].digit;
-        if (d0 === d1 && d1 === d2 && d3 === d4 && d0 !== d3) {
-          xxyyyTrigger = true;
-          xxyyyBarrier = d0;
-          streak = 5;
-        } else {
-          streak = 0;
-        }
-      } else {
-        streak = 0;
-      }
-      this.streakDigit = null;
-      streakDigit = null;
-    } else if (mode === "xxxyy") {
-      if (ticks.length >= 5) {
-        const d0 = ticks[0].digit;
-        const d1 = ticks[1].digit;
-        const d2 = ticks[2].digit;
-        const d3 = ticks[3].digit;
-        const d4 = ticks[4].digit;
-        if (d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2) {
-          xxxyyTrigger = true;
-          xxxyyBarrier = d0;
-          streak = 5;
-        } else {
-          streak = 0;
-        }
-      } else {
-        streak = 0;
-      }
-      this.streakDigit = null;
-      streakDigit = null;
+    if (this.streakDigit === digit) {
+      streak += 1;
     } else {
-      if (digit === this.cfg.targetDigit) streak += 1;
-      else streak = 0;
-      this.streakDigit = this.cfg.targetDigit;
-      streakDigit = this.cfg.targetDigit;
+      streak = 1;
+      this.streakDigit = digit;
     }
+    const streakDigit = digit;
 
     this.patch({ lastDigit: digit, lastPrice: price, ticks, streak, streakDigit });
 
     if (this.cooldown > 0) this.cooldown -= 1;
 
+    // Pattern buffers for xxyyy / xxxyy
+    let xxyyyTrigger = false;
+    let xxyyyBarrier: number | null = null;
+    let xxxyyTrigger = false;
+    let xxxyyBarrier: number | null = null;
+
+    if (this.state.ticks.length >= 5) {
+      const t0 = this.state.ticks[0].digit;
+      const t1 = this.state.ticks[1].digit;
+      const t2 = this.state.ticks[2].digit;
+      const t3 = this.state.ticks[3].digit;
+      const t4 = this.state.ticks[4].digit;
+
+      if (t0 === t1 && t1 === t2 && t3 === t4 && t0 !== t3) {
+        xxyyyTrigger = true;
+        xxyyyBarrier = t3;
+      }
+      if (t0 === t1 && t2 === t3 && t3 === t4 && t0 !== t2) {
+        xxxyyTrigger = true;
+        xxxyyBarrier = t2;
+      }
+    }
+
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
-      if (mode === "xxyyy") {
-        if (xxyyyTrigger && xxyyyBarrier !== null) {
-          this.placeTrade(xxyyyBarrier);
+      const availableModes = this.cfg.triggerMode === "th_dpst" ? this.state.remainingCycle : [this.cfg.triggerMode];
+
+      let triggeredMode: Exclude<TriggerMode, "th_dpst"> | null = null;
+      let barrier: number | null = null;
+
+      for (const m of availableModes) {
+        if (m === "xxyyy" && xxyyyTrigger && xxyyyBarrier !== null) {
+          triggeredMode = m;
+          barrier = xxyyyBarrier;
+          break;
         }
-      } else if (mode === "xxxyy") {
-        if (xxxyyTrigger && xxxyyBarrier !== null) {
-          this.placeTrade(xxxyyBarrier);
+        if (m === "xxxyy" && xxxyyTrigger && xxxyyBarrier !== null) {
+          triggeredMode = m;
+          barrier = xxxyyBarrier;
+          break;
         }
-      } else if (mode === "any" && streak >= this.cfg.anyRepetitions) {
-        this.placeTrade(digit);
-      } else if (mode === "odd" && streak >= this.cfg.oddRepetitions) {
-        this.placeTrade(digit);
-      } else if (mode === "even" && streak >= this.cfg.evenRepetitions) {
-        this.placeTrade(digit);
-      } else if (streak >= this.cfg.repetitionCount) {
-        const barrier =
-          mode === "specific" ? this.cfg.targetDigit : digit;
-        this.placeTrade(barrier);
+        if (m === "any" && streak >= this.cfg.anyRepetitions) {
+          triggeredMode = m;
+          barrier = digit;
+          break;
+        }
+        if (m === "odd" && digit % 2 !== 0 && streak >= this.cfg.oddRepetitions) {
+          triggeredMode = m;
+          barrier = digit;
+          break;
+        }
+        if (m === "even" && digit % 2 === 0 && streak >= this.cfg.evenRepetitions) {
+          triggeredMode = m;
+          barrier = digit;
+          break;
+        }
+        if (m === "specific" && digit === this.cfg.targetDigit && streak >= this.cfg.repetitionCount) {
+          triggeredMode = m;
+          barrier = this.cfg.targetDigit;
+          break;
+        }
+      }
+
+      if (triggeredMode !== null && barrier !== null) {
+        this.placeTrade(barrier, triggeredMode);
       }
     }
   }
 
 
-  private async placeTrade(barrierDigit: number) {
+  private async placeTrade(barrierDigit: number, mode: Exclude<TriggerMode, "th_dpst">) {
     if (this.cfg.triggerMode === "th_dpst") {
-      this.cycleIndex++;
-      if (this.cycleIndex >= this.currentCycle.length) {
-        this.cycleIndex = 0;
-        this.shuffleCycle();
+      let nextCycle = this.state.remainingCycle.filter(m => m !== mode);
+      if (nextCycle.length === 0) {
+        nextCycle = this.shuffleArray(TH_DPST_CYCLE);
       }
+      this.patch({ pendingTrade: true, streak: 0, streakDigit: null, remainingCycle: nextCycle });
+    } else {
+      this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
-    this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     this.streakDigit = null;
     this.cooldown = 2;
 
@@ -498,6 +475,7 @@ export class DerivBot {
         digit: barrierDigit,
         buyPrice: asFiniteNumber(buy.buy.buy_price, this.cfg.stake),
         status: "open",
+        mode,
       };
       this.patch({ trades: [trade, ...this.state.trades].slice(0, 100) });
 
@@ -626,8 +604,6 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
-    this.cycleIndex = 0;
-    this.shuffleCycle();
     this.patch({
       pnl: 0,
       wins: 0,
@@ -637,6 +613,7 @@ export class DerivBot {
       streak: 0,
       streakDigit: null,
       error: null,
+      remainingCycle: this.cfg.triggerMode === "th_dpst" ? this.shuffleArray(TH_DPST_CYCLE) : [...TH_DPST_CYCLE],
     });
   }
 

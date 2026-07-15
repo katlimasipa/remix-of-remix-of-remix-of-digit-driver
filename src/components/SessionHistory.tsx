@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Trash2, History } from "lucide-react";
+import { Trade } from "@/lib/derivBot";
 
 export type SavedSession = {
   id: string;
@@ -16,6 +17,7 @@ export type SavedSession = {
   targetDigit: number;
   repetitionCount: number;
   currency: string;
+  trades?: Trade[];
 };
 
 const STORAGE_KEY = "smrttrdr.sessions.v1";
@@ -74,6 +76,7 @@ function fmtDuration(ms: number) {
 export function SessionHistory({ currentAccountId }: { currentAccountId?: string }) {
   const [sessions, setSessions] = useState<SavedSession[]>(() => loadSessions());
   const [tab, setTab] = useState<"demo" | "real">("demo");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setSessions(loadSessions());
@@ -146,34 +149,72 @@ export function SessionHistory({ currentAccountId }: { currentAccountId?: string
                 ? Math.round((s.wins / s.totalTrades) * 100)
                 : 0;
               return (
-                <li key={s.id} className="p-2.5 flex items-center gap-2 font-mono text-xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      <span>{fmtDate(s.endedAt)}</span>
-                      <span>·</span>
-                      <span>{fmtDuration(s.endedAt - s.startedAt)}</span>
-                      {isCurrent && <span className="text-primary">•</span>}
+                <React.Fragment key={s.id}>
+                  <li className="p-2.5 flex items-center gap-2 font-mono text-xs">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span>{fmtDate(s.endedAt)}</span>
+                        <span>·</span>
+                        <span>{fmtDuration(s.endedAt - s.startedAt)}</span>
+                        {isCurrent && <span className="text-primary">•</span>}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span className="text-foreground">{s.totalTrades} trades</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-bull">{s.wins}W</span>
+                        <span className="text-bear">{s.losses}L</span>
+                        <span className="text-muted-foreground">({rate}%)</span>
+                      </div>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="text-foreground">{s.totalTrades} trades</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="text-bull">{s.wins}W</span>
-                      <span className="text-bear">{s.losses}L</span>
-                      <span className="text-muted-foreground">({rate}%)</span>
+                    <div className={`text-right font-semibold ${s.pnl >= 0 ? "text-bull" : "text-bear"}`}>
+                      {s.pnl >= 0 ? "+" : ""}
+                      {s.pnl.toFixed(2)}
                     </div>
-                  </div>
-                  <div className={`text-right shrink-0 font-semibold ${s.pnl >= 0 ? "text-bull" : "text-bear"}`}>
-                    {s.pnl >= 0 ? "+" : ""}
-                    {s.pnl.toFixed(2)}
-                  </div>
-                  <button
-                    onClick={() => deleteSession(s.id)}
-                    className="shrink-0 text-muted-foreground hover:text-bear transition-colors p-1"
-                    title="Delete session"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </li>
+                    <div className="flex items-center gap-2">
+                      {s.trades && s.trades.length > 0 && (
+                        <button
+                          onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          {expandedId === s.id ? "Hide" : "View"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteSession(s.id)}
+                        className="p-1 text-muted-foreground hover:text-bear transition-colors"
+                        title="Delete session"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </li>
+                  {expandedId === s.id && s.trades && (
+                    <li className="px-2.5 pb-2.5">
+                      <div className="bg-surface rounded border border-border p-2 overflow-x-auto">
+                        <table className="w-full text-xs font-mono text-left">
+                          <thead className="text-muted-foreground">
+                            <tr>
+                              <th className="font-normal pr-2">Mode</th>
+                              <th className="font-normal pr-2">Digit</th>
+                              <th className="font-normal pr-2 text-right">P/L</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {s.trades.map((t) => (
+                              <tr key={t.id} className="border-t border-border/50">
+                                <td className="pr-2 py-1 text-muted-foreground">{t.mode || "-"}</td>
+                                <td className="pr-2 py-1">{t.digit}</td>
+                                <td className={`py-1 text-right ${t.profit && t.profit > 0 ? "text-bull" : "text-bear"}`}>
+                                  {t.profit ? (t.profit > 0 ? `+${t.profit.toFixed(2)}` : t.profit.toFixed(2)) : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </li>
+                  )}
+                </React.Fragment>
               );
             })}
           </ul>

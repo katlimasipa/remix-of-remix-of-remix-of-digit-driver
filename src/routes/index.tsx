@@ -78,7 +78,7 @@ function Dashboard() {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
-    effectiveMode: "specific" as const,
+    remainingCycle: [] as ("specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even")[],
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
@@ -106,6 +106,7 @@ function Dashboard() {
       targetDigit: cfg.targetDigit,
       repetitionCount: cfg.repetitionCount,
       currency: s.currency ?? "USD",
+      trades: [...s.trades],
     });
     stop();
     reset();
@@ -618,6 +619,7 @@ function Dashboard() {
                     <tr className="text-left">
                       <th className="py-2 pr-4 font-medium">Time</th>
                       <th className="py-2 pr-4 font-medium">Differ ≠</th>
+                      <th className="py-2 pr-4 font-medium">Mode</th>
                       <th className="py-2 pr-4 font-medium">Stake</th>
                       <th className="py-2 pr-4 font-medium">Result</th>
                       <th className="py-2 pr-0 font-medium text-right">P/L</th>
@@ -630,6 +632,7 @@ function Dashboard() {
                           {formatDateTime(t.time)}
                         </td>
                         <td className="py-2 pr-4">{t.digit}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{t.mode || "-"}</td>
                         <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
                         <td className="py-2 pr-4">
                           {t.status === "open" ? (
@@ -716,7 +719,7 @@ function Dashboard() {
             k="Mode"
             v={
               cfg.triggerMode === "th_dpst"
-                ? `Dpst → ${s?.effectiveMode ?? "specific"}`
+                ? `Dpst (${s?.remainingCycle.length || 0} left)`
                 : cfg.triggerMode === "any"
                   ? "Any digit"
                   : cfg.triggerMode === "xxyyy"
@@ -753,7 +756,7 @@ function Dashboard() {
                 : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
                   ? "Pattern streak"
                   : cfg.triggerMode === "th_dpst"
-                    ? `Cycle streak (${s?.effectiveMode ?? "—"})`
+                    ? `Simultaneous Cycle`
                     : "Streak"
             }
             v={`${s?.streak ?? 0}`}
