@@ -604,6 +604,7 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
+    this.cycleIndex = 0;
     this.patch({
       pnl: 0,
       wins: 0,
