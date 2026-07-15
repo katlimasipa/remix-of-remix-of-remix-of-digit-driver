@@ -919,8 +919,11 @@ function computeStreakHighlights(
     return out;
   }
 
-  // Walk consecutive same-digit runs. For "specific" only highlight runs of targetDigit.
-  // For "odd"/"even" only runs whose digit matches parity. For "any" all runs.
+  // Highlight every consecutive same-digit run (length >= 2) with a rotating
+  // color, regardless of trigger mode, so back-to-back repetitions are always
+  // visually distinct from each other.
+  void mode;
+  void targetDigit;
   let colorIdx = 0;
   let i = 0;
   while (i < digits.length) {
@@ -928,17 +931,9 @@ function computeStreakHighlights(
     while (j < digits.length && digits[j] === digits[i]) j++;
     const runLen = j - i;
     if (runLen >= 2) {
-      const d = digits[i];
-      const eligible =
-        mode === "any" ||
-        (mode === "specific" && d === targetDigit) ||
-        (mode === "odd" && d % 2 === 1) ||
-        (mode === "even" && d % 2 === 0);
-      if (eligible) {
-        const color = `hsl(${STREAK_COLORS[colorIdx % STREAK_COLORS.length]})`;
-        for (let k = i; k < j; k++) out[k] = color;
-        colorIdx++;
-      }
+      const color = `hsl(${STREAK_COLORS[colorIdx % STREAK_COLORS.length]})`;
+      for (let k = i; k < j; k++) out[k] = color;
+      colorIdx++;
     }
     i = j;
   }

@@ -33,7 +33,10 @@ export function useTradeNotifications(
 
   const notifyAllDevices = useCallback(
     async (payload: NotifyPayload) => {
-      void showLocalNotification(payload);
+      // Local notification only fires on this device if permission is granted.
+      if (permission === "granted") void showLocalNotification(payload);
+      // Remote push always fires — so laptop-run trades still reach the phone
+      // even when this device hasn't granted browser permission.
       if (!ownerKey) return;
       try {
         await sendPushToDevices(ownerKey, payload);
@@ -41,7 +44,7 @@ export function useTradeNotifications(
         console.warn("Push send failed", e);
       }
     },
-    [ownerKey],
+    [ownerKey, permission],
   );
 
   const enable = useCallback(async () => {
@@ -90,7 +93,7 @@ export function useTradeNotifications(
 
   // Trade won/lost alerts.
   useEffect(() => {
-    if (permission !== "granted" || !state?.trades) return;
+    if (!state?.trades) return;
     for (const t of state.trades) {
       if (t.status === "open") continue;
       if (seenTradesRef.current.has(t.id)) continue;
@@ -114,7 +117,6 @@ export function useTradeNotifications(
     const isTP = err.startsWith("Take Profit reached");
     if (!isSL && !isTP) return;
     lastRiskErrRef.current = err;
-    if (permission !== "granted") return;
     void notifyAllDevices({
       title: isTP ? "Take Profit reached" : "Stop Loss hit",
       body: `${err} · Session ended · ${state?.wins ?? 0}W / ${state?.losses ?? 0}L`,
@@ -126,7 +128,7 @@ export function useTradeNotifications(
 
   const notifyBotEvent = useCallback(
     (event: BotEvent) => {
-      if (permission !== "granted") return;
+      
       if (event.type === "bot_started") {
         void notifyAllDevices({
           title: "Bot started",
