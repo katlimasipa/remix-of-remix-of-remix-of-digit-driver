@@ -566,6 +566,13 @@ export class DerivBot {
 
     this.patch({ trades, pnl, wins, losses, totalTrades, pendingTrade: false });
 
+    // Advance the TH DPST Strtgy cycle only after a settled trade.
+    if (this.cfg.triggerMode === "th_dpst") {
+      this.cycleIndex = (this.cycleIndex + 1) % TH_DPST_CYCLE.length;
+      this.streakDigit = null;
+      this.patch({ streak: 0, streakDigit: null });
+    }
+
     const settledTrade = trades.find((t) => t.id === contractId)!;
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
 
