@@ -438,7 +438,7 @@ export class DerivBot {
       }
     }
   }
-  }
+
 
   private async placeTrade(barrierDigit: number) {
     this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
