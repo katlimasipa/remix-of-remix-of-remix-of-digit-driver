@@ -114,14 +114,23 @@ export class DerivBot {
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
   private cycleIndex = 0;
+  private currentCycle: Exclude<TriggerMode, "th_dpst">[] = [...TH_DPST_CYCLE];
+
+  private shuffleCycle() {
+    for (let i = this.currentCycle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.currentCycle[i], this.currentCycle[j]] = [this.currentCycle[j], this.currentCycle[i]];
+    }
+  }
 
   private getEffectiveMode(): Exclude<TriggerMode, "th_dpst"> {
     if (this.cfg.triggerMode !== "th_dpst") return this.cfg.triggerMode;
-    return TH_DPST_CYCLE[this.cycleIndex % TH_DPST_CYCLE.length];
+    return this.currentCycle[this.cycleIndex];
   }
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
+    this.shuffleCycle();
   }
 
   subscribe(fn: Listener) {
@@ -455,7 +464,11 @@ export class DerivBot {
 
   private async placeTrade(barrierDigit: number) {
     if (this.cfg.triggerMode === "th_dpst") {
-      this.cycleIndex = (this.cycleIndex + 1) % TH_DPST_CYCLE.length;
+      this.cycleIndex++;
+      if (this.cycleIndex >= this.currentCycle.length) {
+        this.cycleIndex = 0;
+        this.shuffleCycle();
+      }
     }
     this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     this.streakDigit = null;
@@ -614,6 +627,7 @@ export class DerivBot {
     this.watchedContracts.clear();
     this.settledContracts.clear();
     this.cycleIndex = 0;
+    this.shuffleCycle();
     this.patch({
       pnl: 0,
       wins: 0,
