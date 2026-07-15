@@ -7,6 +7,7 @@ import {
   getNotificationOwnerKey,
   sendPushToDevices,
   showLocalNotification,
+  disablePushSubscription,
 } from "@/lib/pushClient";
 
 type NotifyPayload = {
@@ -28,15 +29,19 @@ export function useTradeNotifications(
       : "denied",
   );
   const supported = notificationsSupported();
+  const [wantsPush, setWantsPush] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("smrttrdr.push_enabled") !== "false";
+  });
   const seenTradesRef = useRef<Set<string>>(new Set());
   const lastRiskErrRef = useRef<string | null>(null);
 
   const notifyAllDevices = useCallback(
     async (payload: NotifyPayload) => {
-      // Local notification only fires on this device if permission is granted.
-      if (permission === "granted") void showLocalNotification(payload);
+      // Local notification only fires on this device if permission is granted and locally enabled.
+      if (permission === "granted" && wantsPush) void showLocalNotification(payload);
       // Remote push always fires — so laptop-run trades still reach the phone
-      // even when this device hasn't granted browser permission.
+      // even when this device hasn't granted browser permission (or has it toggled off).
       if (!ownerKey) return;
       try {
         await sendPushToDevices(ownerKey, payload);
@@ -44,7 +49,7 @@ export function useTradeNotifications(
         console.warn("Push send failed", e);
       }
     },
-    [ownerKey, permission],
+    [ownerKey, permission, wantsPush],
   );
 
   const enable = useCallback(async () => {
@@ -73,14 +78,26 @@ export function useTradeNotifications(
         tag: "enabled-local",
       });
     }
+    setWantsPush(true);
+    localStorage.setItem("smrttrdr.push_enabled", "true");
     return true;
   }, [supported, ownerKey, notifyAllDevices]);
 
+  const disable = useCallback(async () => {
+    try {
+      await disablePushSubscription();
+    } catch (e) {
+      console.warn("Push unsubscription failed", e);
+    }
+    setWantsPush(false);
+    localStorage.setItem("smrttrdr.push_enabled", "false");
+  }, []);
+
   // Re-register this device when permission is already granted (new browser / after update).
   useEffect(() => {
-    if (permission !== "granted" || !ownerKey) return;
+    if (permission !== "granted" || !ownerKey || !wantsPush) return;
     void ensurePushSubscription(ownerKey).catch(() => {});
-  }, [permission, ownerKey]);
+  }, [permission, ownerKey, wantsPush]);
 
   // Seed seen trades on mount so we don't notify for history.
   useEffect(() => {
@@ -159,7 +176,8 @@ export function useTradeNotifications(
     supported,
     permission,
     enable,
-    enabled: permission === "granted",
+    disable,
+    enabled: permission === "granted" && wantsPush,
     denied: permission === "denied",
     requiresInstall: pushRequiresInstall(),
     notifyBotEvent,

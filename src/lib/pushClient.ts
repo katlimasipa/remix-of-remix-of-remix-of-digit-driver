@@ -1,4 +1,4 @@
-import { VAPID_PUBLIC_KEY, registerServiceWorker, subscribePush } from "@/lib/pwa";
+import { VAPID_PUBLIC_KEY, registerServiceWorker, subscribePush, unsubscribePush } from "@/lib/pwa";
 
 export function getNotificationOwnerKey(accountIds: string[]): string {
   return [...accountIds].sort().join("|");
@@ -32,6 +32,21 @@ export async function ensurePushSubscription(ownerKey: string): Promise<boolean>
     auth: json.keys.auth,
     userAgent: navigator.userAgent.slice(0, 500),
   });
+  return true;
+}
+
+export async function disablePushSubscription(): Promise<boolean> {
+  const reg = await registerServiceWorker();
+  if (!reg) return false;
+  await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    const json = sub.toJSON();
+    await unsubscribePush(reg);
+    if (json.endpoint) {
+      await pushApi("unsubscribe", { endpoint: json.endpoint }).catch(() => {});
+    }
+  }
   return true;
 }
 

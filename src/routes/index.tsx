@@ -259,8 +259,14 @@ function Dashboard() {
 
           {notifications.supported && (
             <button
-              onClick={() => void notifications.enable()}
-              disabled={notifications.denied}
+              onClick={() => {
+                if (notifications.enabled) {
+                  void notifications.disable();
+                } else {
+                  void notifications.enable();
+                }
+              }}
+              disabled={notifications.denied && !notifications.enabled}
               className="inline-flex items-center justify-center rounded-md border border-border h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 notifications.requiresInstall
