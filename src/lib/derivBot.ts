@@ -384,11 +384,11 @@ export class DerivBot {
 
       if (t0 === t1 && t1 === t2 && t3 === t4 && t0 !== t3) {
         xxyyyTrigger = true;
-        xxyyyBarrier = t3;
+        xxyyyBarrier = t0; // Y is the barrier
       }
       if (t0 === t1 && t2 === t3 && t3 === t4 && t0 !== t2) {
         xxxyyTrigger = true;
-        xxxyyBarrier = t2;
+        xxxyyBarrier = t0; // Y is the barrier
       }
     }
 
