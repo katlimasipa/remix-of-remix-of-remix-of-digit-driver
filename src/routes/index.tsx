@@ -919,17 +919,19 @@ function formatDateTime(t: number): string {
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// Palette of HSL color strings (cycled per distinct streak run).
-// Each color is visually distinct so back-to-back streaks are easy to differentiate.
-const STREAK_COLORS = [
-  "190 90% 55%",  // cyan
-  "38 92% 55%",   // amber
-  "142 70% 45%",  // green
-  "280 75% 65%",  // violet
-  "0 80% 62%",    // red
-  "210 90% 60%",  // blue
-  "50 95% 55%",   // yellow
-  "320 75% 60%",  // pink
+// Palette of HSL color strings, one for each digit (0-9).
+// This ensures that repetitions of the same digit always have the same distinct color.
+const DIGIT_COLORS = [
+  "190 90% 55%",  // 0: cyan
+  "38 92% 55%",   // 1: amber
+  "142 70% 45%",  // 2: green
+  "280 75% 65%",  // 3: violet
+  "0 80% 62%",    // 4: red
+  "210 90% 60%",  // 5: blue
+  "50 95% 55%",   // 6: yellow
+  "320 75% 60%",  // 7: pink
+  "27 90% 55%",   // 8: orange
+  "170 80% 45%",  // 9: teal
 ];
 
 // digits[0] is most recent. Returns an array of same length with hsl color string or null per index.
@@ -950,8 +952,8 @@ function computeStreakHighlights(
       const matchXxxyy = mode === "xxxyy" && d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2;
       if (matchXxyyy || matchXxxyy) {
         // Two colors: one for the "XX"/"XXX" run, another for the "YYY"/"YY" run.
-        const cA = `hsl(${STREAK_COLORS[0]})`;
-        const cB = `hsl(${STREAK_COLORS[1]})`;
+        const cA = DIGIT_COLORS[d0];
+        const cB = DIGIT_COLORS[d4];
         if (mode === "xxyyy") {
           out[0] = out[1] = out[2] = cA;
           out[3] = out[4] = cB;
@@ -964,21 +966,17 @@ function computeStreakHighlights(
     return out;
   }
 
-  // Highlight every consecutive same-digit run (length >= 2) with a rotating
-  // color, regardless of trigger mode, so back-to-back repetitions are always
-  // visually distinct from each other.
+  // Highlight every consecutive same-digit run (length >= 2) with the digit's unique color.
   void mode;
   void targetDigit;
-  let colorIdx = 0;
   let i = 0;
   while (i < digits.length) {
     let j = i;
     while (j < digits.length && digits[j] === digits[i]) j++;
     const runLen = j - i;
     if (runLen >= 2) {
-      const color = `hsl(${STREAK_COLORS[colorIdx % STREAK_COLORS.length]})`;
+      const color = DIGIT_COLORS[digits[i]];
       for (let k = i; k < j; k++) out[k] = color;
-      colorIdx++;
     }
     i = j;
   }
