@@ -81,7 +81,7 @@ function Dashboard() {
     remainingCycle: [] as ("specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even")[],
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
-  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
+  const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
   const sessionStartRef = useRef<number>(Date.now());
   const shouldStayConnectedRef = useRef(false);
   const reconnectingRef = useRef(false);
@@ -665,6 +665,8 @@ function Dashboard() {
               <EmptyState>Trades will appear here once the bot fires.</EmptyState>
             )}
           </Panel>
+
+          <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
 
         {/* RIGHT: Stats */}
@@ -780,16 +782,6 @@ function Dashboard() {
             <Save className="h-3.5 w-3.5" />
             End & Save Session
           </button>
-
-          <Divider />
-          <SessionHistory currentAccountId={activeAccount.account_id} />
-        </section>
-
-        {/* Mobile-only history tab: separate view of saved sessions */}
-        <section
-          className={`bg-background p-4 sm:p-5 ${mobileTab === "history" ? "" : "hidden"} lg:hidden`}
-        >
-          <SessionHistory currentAccountId={activeAccount.account_id} />
         </section>
       </main>
 
@@ -827,13 +819,12 @@ function Dashboard() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-3">
           {(
             [
               { id: "controls", label: "Controls", icon: Settings2 },
               { id: "live", label: "Live", icon: Activity },
               { id: "stats", label: "Stats", icon: BarChart3 },
-              { id: "history", label: "History", icon: History },
             ] as const
           ).map(({ id, label, icon: Icon }) => {
             const active = mobileTab === id;
