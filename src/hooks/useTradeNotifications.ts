@@ -128,7 +128,7 @@ export function useTradeNotifications(
 
   const notifyBotEvent = useCallback(
     (event: BotEvent) => {
-      if (permission !== "granted") return;
+      
       if (event.type === "bot_started") {
         void notifyAllDevices({
           title: "Bot started",
