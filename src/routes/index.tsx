@@ -9,6 +9,13 @@ import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save, S
 import { PwaInstallBanner, PwaInstallButton } from "@/components/PwaInstall";
 import { useTradeNotifications } from "@/hooks/useTradeNotifications";
 import { SessionHistory, saveSession } from "@/components/SessionHistory";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTheme } from "@/hooks/useTheme";
 
 export const Route = createFileRoute("/")({
@@ -243,17 +250,18 @@ function Dashboard() {
             </span>
           </div>
           
-          <select 
-            value={activeAccount.account_id}
-            onChange={(e) => switchAccount(e.target.value)}
-            className="hidden md:block bg-surface border border-border rounded px-2 py-1 outline-none text-xs"
-          >
-            {accounts.map(acc => (
-              <option key={acc.account_id} value={acc.account_id}>
-                {acc.account_id} ({acc.account_type === 'demo' ? 'Demo' : 'Real'})
-              </option>
-            ))}
-          </select>
+          <Select value={activeAccount.account_id} onValueChange={switchAccount}>
+            <SelectTrigger className="hidden md:flex bg-surface border border-border h-[26px] text-xs font-medium w-auto focus:ring-1 focus:ring-ring">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((acc) => (
+                <SelectItem key={acc.account_id} value={acc.account_id}>
+                  {acc.account_id} ({acc.account_type === 'demo' ? 'Demo' : 'Real'})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <PwaInstallButton />
 
@@ -320,17 +328,18 @@ function Dashboard() {
           <div className="space-y-2">
             <span className="text-[11px] text-muted-foreground">Active Account</span>
             {accounts.length > 1 ? (
-              <select
-                value={activeAccount.account_id}
-                onChange={(e) => switchAccount(e.target.value)}
-                className={`input font-mono text-sm font-medium w-full ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : ''}`}
-              >
-                {accounts.map((acc) => (
-                  <option key={acc.account_id} value={acc.account_id}>
-                    {acc.account_id} · {acc.account_type === 'demo' ? 'Demo' : 'Real'}
-                  </option>
-                ))}
-              </select>
+              <Select value={activeAccount.account_id} onValueChange={switchAccount}>
+                <SelectTrigger className={`h-9 font-mono text-sm font-medium w-full bg-input border-border focus:ring-1 focus:ring-ring ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : ''}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.account_id} value={acc.account_id}>
+                      {acc.account_id} — {acc.account_type === 'demo' ? 'Demo' : 'Real'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
                 {activeAccount.account_id} · {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
@@ -374,21 +383,23 @@ function Dashboard() {
           <Divider />
           <SectionLabel>Strategy</SectionLabel>
           <Field label="Mode">
-            <select
-              className="input"
-              value={cfg.triggerMode}
-              onChange={(e) =>
-                setCfg({ ...cfg, triggerMode: e.target.value as TriggerMode })
-              }
+            <Select 
+              value={cfg.triggerMode} 
+              onValueChange={(val) => setCfg({ ...cfg, triggerMode: val as TriggerMode })}
             >
-              <option value="specific">Specific digit</option>
-              <option value="any">Any digit</option>
-              <option value="xxyyy">XXYYY = Z</option>
-              <option value="xxxyy">XXXYY = Z</option>
-              <option value="odd">Odd reps</option>
-              <option value="even">Even reps</option>
-              <option value="th_dpst">TH DPST Strtgy (cycle all)</option>
-            </select>
+              <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="specific">Specific digit</SelectItem>
+                <SelectItem value="any">Any digit</SelectItem>
+                <SelectItem value="xxyyy">XXYYY = Z</SelectItem>
+                <SelectItem value="xxxyy">XXXYY = Z</SelectItem>
+                <SelectItem value="odd">Odd reps</SelectItem>
+                <SelectItem value="even">Even reps</SelectItem>
+                <SelectItem value="th_dpst">TH DPST Strtgy (cycle all)</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           <p className="text-[10px] text-muted-foreground/80 -mt-2">
             {cfg.triggerMode === "any"
@@ -408,17 +419,21 @@ function Dashboard() {
           <div className="grid grid-cols-2 gap-3">
             {(cfg.triggerMode === "specific" || cfg.triggerMode === "th_dpst") && (
               <Field label="Target Digit">
-                <select
-                  className="input"
-                  value={cfg.targetDigit}
-                  onChange={(e) => setCfg({ ...cfg, targetDigit: Number(e.target.value) })}
+                <Select 
+                  value={cfg.targetDigit.toString()} 
+                  onValueChange={(val) => setCfg({ ...cfg, targetDigit: Number(val) })}
                 >
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <option key={i} value={i}>
-                      {i}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {i}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             )}
             {/* Specific digit repetitions */}
@@ -796,9 +811,9 @@ function Dashboard() {
           font-family: var(--font-mono);
           color: var(--foreground);
           outline: none;
-          transition: border-color .15s ease, background .15s ease;
+          transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
         }
-        .input:focus { border-color: var(--ring); }
+        .input:focus { border-color: var(--ring); box-shadow: 0 0 0 2px hsl(var(--ring) / .15); }
         .btn-primary, .btn-secondary, .btn-danger, .btn-ghost {
           font-size: 13px; font-weight: 500; padding: 9px 12px;
           border-radius: 6px; transition: all .15s ease; cursor: pointer;
