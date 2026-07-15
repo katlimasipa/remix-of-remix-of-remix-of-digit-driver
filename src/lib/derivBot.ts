@@ -16,10 +16,14 @@ const TH_DPST_CYCLE: Exclude<TriggerMode, "th_dpst">[] = [
 
 export type BotConfig = {
   wsUrl: string | undefined;
+  token: string;
   symbol: string;
   stake: number;
   targetDigit: number;
   repetitionCount: number;
+  anyRepetitions: number;
+  oddRepetitions: number;
+  evenRepetitions: number;
   stopLoss: number;
   takeProfit: number;
   triggerMode: TriggerMode;
@@ -53,6 +57,7 @@ export type BotState = {
   totalTrades: number;
   error: string | null;
   pendingTrade: boolean;
+  effectiveMode: TriggerMode;
 };
 
 export type BotEvent =
@@ -95,6 +100,7 @@ export class DerivBot {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
+    effectiveMode: "specific",
   };
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
@@ -350,6 +356,7 @@ export class DerivBot {
     let xxxyyBarrier: number | null = null;
 
     const mode = this.getEffectiveMode();
+    this.patch({ effectiveMode: mode });
 
     if (mode === "any") {
       if (this.streakDigit === digit) streak += 1;
@@ -431,6 +438,12 @@ export class DerivBot {
         if (xxxyyTrigger && xxxyyBarrier !== null) {
           this.placeTrade(xxxyyBarrier);
         }
+      } else if (mode === "any" && streak >= this.cfg.anyRepetitions) {
+        this.placeTrade(digit);
+      } else if (mode === "odd" && streak >= this.cfg.oddRepetitions) {
+        this.placeTrade(digit);
+      } else if (mode === "even" && streak >= this.cfg.evenRepetitions) {
+        this.placeTrade(digit);
       } else if (streak >= this.cfg.repetitionCount) {
         const barrier =
           mode === "specific" ? this.cfg.targetDigit : digit;
@@ -441,6 +454,9 @@ export class DerivBot {
 
 
   private async placeTrade(barrierDigit: number) {
+    if (this.cfg.triggerMode === "th_dpst") {
+      this.cycleIndex = (this.cycleIndex + 1) % TH_DPST_CYCLE.length;
+    }
     this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     this.streakDigit = null;
     this.cooldown = 2;
@@ -565,13 +581,6 @@ export class DerivBot {
     const totalTrades = this.state.totalTrades + 1;
 
     this.patch({ trades, pnl, wins, losses, totalTrades, pendingTrade: false });
-
-    // Advance the TH DPST Strtgy cycle only after a settled trade.
-    if (this.cfg.triggerMode === "th_dpst") {
-      this.cycleIndex = (this.cycleIndex + 1) % TH_DPST_CYCLE.length;
-      this.streakDigit = null;
-      this.patch({ streak: 0, streakDigit: null });
-    }
 
     const settledTrade = trades.find((t) => t.id === contractId)!;
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });

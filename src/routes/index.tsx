@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
@@ -78,6 +78,7 @@ function Dashboard() {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
+    effectiveMode: "specific" as const,
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats" | "history">("live");
@@ -413,13 +414,47 @@ function Dashboard() {
                 </select>
               </Field>
             )}
-            {cfg.triggerMode !== "xxyyy" && cfg.triggerMode !== "xxxyy" && (
-              <Field label="Repetitions">
+            {/* Specific digit repetitions */}
+            {(cfg.triggerMode === "specific" || cfg.triggerMode === "th_dpst") && (
+              <Field label={cfg.triggerMode === "th_dpst" ? "Specific Reps" : "Repetitions"}>
                 <NumInput
                   value={cfg.repetitionCount}
                   min={1}
                   step={1}
                   onChange={(v) => setCfg({ ...cfg, repetitionCount: Math.max(1, v) })}
+                />
+              </Field>
+            )}
+            {/* Any digit repetitions */}
+            {(cfg.triggerMode === "any" || cfg.triggerMode === "th_dpst") && (
+              <Field label={cfg.triggerMode === "th_dpst" ? "Any Reps" : "Repetitions"}>
+                <NumInput
+                  value={cfg.anyRepetitions}
+                  min={1}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, anyRepetitions: Math.max(1, v) })}
+                />
+              </Field>
+            )}
+            {/* Odd digit repetitions */}
+            {(cfg.triggerMode === "odd" || cfg.triggerMode === "th_dpst") && (
+              <Field label={cfg.triggerMode === "th_dpst" ? "Odd Reps" : "Repetitions"}>
+                <NumInput
+                  value={cfg.oddRepetitions}
+                  min={1}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, oddRepetitions: Math.max(1, v) })}
+                />
+              </Field>
+            )}
+            {/* Even digit repetitions */}
+            {(cfg.triggerMode === "even" || cfg.triggerMode === "th_dpst") && (
+              <Field label={cfg.triggerMode === "th_dpst" ? "Even Reps" : "Repetitions"}>
+                <NumInput
+                  value={cfg.evenRepetitions}
+                  min={1}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, evenRepetitions: Math.max(1, v) })}
                 />
               </Field>
             )}
@@ -680,25 +715,33 @@ function Dashboard() {
           <Row
             k="Mode"
             v={
-              cfg.triggerMode === "any"
-                ? "Any digit"
-                : cfg.triggerMode === "xxyyy"
-                  ? "XXYYY = Z"
-                  : cfg.triggerMode === "xxxyy"
-                    ? "XXXYY = Z"
-                    : cfg.triggerMode === "odd"
-                      ? "Odd reps"
-                      : cfg.triggerMode === "even"
-                        ? "Even reps"
-                        : `Digit ${cfg.targetDigit}`
+              cfg.triggerMode === "th_dpst"
+                ? `Dpst → ${s?.effectiveMode ?? "specific"}`
+                : cfg.triggerMode === "any"
+                  ? "Any digit"
+                  : cfg.triggerMode === "xxyyy"
+                    ? "XXYYY = Z"
+                    : cfg.triggerMode === "xxxyy"
+                      ? "XXXYY = Z"
+                      : cfg.triggerMode === "odd"
+                        ? "Odd reps"
+                        : cfg.triggerMode === "even"
+                          ? "Even reps"
+                          : `Digit ${cfg.targetDigit}`
             }
           />
           <Row
             k="Repetitions required"
             v={
-              cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+              (cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy")
                 ? "Pattern"
-                : String(cfg.repetitionCount)
+                : cfg.triggerMode === "any"
+                  ? String(cfg.anyRepetitions)
+                  : cfg.triggerMode === "odd"
+                    ? String(cfg.oddRepetitions)
+                    : cfg.triggerMode === "even"
+                      ? String(cfg.evenRepetitions)
+                      : String(cfg.repetitionCount)
             }
           />
           <Row
@@ -709,9 +752,11 @@ function Dashboard() {
                 ? `Reps waited (digit ${s?.streakDigit ?? "—"})`
                 : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
                   ? "Pattern streak"
-                  : "Streak"
+                  : cfg.triggerMode === "th_dpst"
+                    ? `Cycle streak (${s?.effectiveMode ?? "—"})`
+                    : "Streak"
             }
-            v={`${s?.streak ?? 0} / ${cfg.repetitionCount}`}
+            v={`${s?.streak ?? 0}`}
           />
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />

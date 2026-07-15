@@ -5,7 +5,7 @@ import pg from "pg";
 
 const VAPID_PUBLIC =
   process.env.VAPID_PUBLIC_KEY ??
-  "BCHwuEFHo7loPQdF5Ec0EXzqqb9TvG2gWEjliPmjlvutxdusFd0AokdtX6B6ixpC0Hcn4tbC9haqk7trObpj2KA";
+  "BG4XSicB0p3O8ar24xEE3E1lPMigu4Jw8FlpxWNp4MDBr8nuEo7Sn24tvrSBo2b3MMNrLMeuXABlspwD8XFsj9U";
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:notify@smrttrdr.app";
 

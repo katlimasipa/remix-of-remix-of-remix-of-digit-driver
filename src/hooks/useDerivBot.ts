@@ -3,10 +3,14 @@ import { DerivBot, type BotConfig, type BotState } from "@/lib/derivBot";
 
 const DEFAULT_CFG: BotConfig = {
   wsUrl: undefined,
+  token: "",
   symbol: "R_100",
   stake: 1,
   targetDigit: 5,
   repetitionCount: 3,
+  anyRepetitions: 3,
+  oddRepetitions: 3,
+  evenRepetitions: 3,
   stopLoss: 10,
   takeProfit: 10,
   triggerMode: "specific",
