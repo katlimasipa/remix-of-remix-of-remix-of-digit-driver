@@ -349,15 +349,17 @@ export class DerivBot {
     let xxxyyTrigger = false;
     let xxxyyBarrier: number | null = null;
 
-    if (this.cfg.triggerMode === "any") {
+    const mode = this.getEffectiveMode();
+
+    if (mode === "any") {
       if (this.streakDigit === digit) streak += 1;
       else {
         this.streakDigit = digit;
         streak = 1;
       }
       streakDigit = digit;
-    } else if (this.cfg.triggerMode === "odd" || this.cfg.triggerMode === "even") {
-      const wantOdd = this.cfg.triggerMode === "odd";
+    } else if (mode === "odd" || mode === "even") {
+      const wantOdd = mode === "odd";
       const matchesParity = wantOdd ? digit % 2 === 1 : digit % 2 === 0;
       if (!matchesParity) {
         this.streakDigit = null;
@@ -371,7 +373,7 @@ export class DerivBot {
         streak = 1;
         streakDigit = digit;
       }
-    } else if (this.cfg.triggerMode === "xxyyy") {
+    } else if (mode === "xxyyy") {
       if (ticks.length >= 5) {
         const d0 = ticks[0].digit;
         const d1 = ticks[1].digit;
@@ -390,7 +392,7 @@ export class DerivBot {
       }
       this.streakDigit = null;
       streakDigit = null;
-    } else if (this.cfg.triggerMode === "xxxyy") {
+    } else if (mode === "xxxyy") {
       if (ticks.length >= 5) {
         const d0 = ticks[0].digit;
         const d1 = ticks[1].digit;
@@ -421,20 +423,21 @@ export class DerivBot {
     if (this.cooldown > 0) this.cooldown -= 1;
 
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
-      if (this.cfg.triggerMode === "xxyyy") {
+      if (mode === "xxyyy") {
         if (xxyyyTrigger && xxyyyBarrier !== null) {
           this.placeTrade(xxyyyBarrier);
         }
-      } else if (this.cfg.triggerMode === "xxxyy") {
+      } else if (mode === "xxxyy") {
         if (xxxyyTrigger && xxxyyBarrier !== null) {
           this.placeTrade(xxxyyBarrier);
         }
       } else if (streak >= this.cfg.repetitionCount) {
         const barrier =
-          this.cfg.triggerMode === "specific" ? this.cfg.targetDigit : digit;
+          mode === "specific" ? this.cfg.targetDigit : digit;
         this.placeTrade(barrier);
       }
     }
+  }
   }
 
   private async placeTrade(barrierDigit: number) {
