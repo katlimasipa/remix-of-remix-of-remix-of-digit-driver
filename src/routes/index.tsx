@@ -398,7 +398,7 @@ function Dashboard() {
                         : "Trades when the target digit repeats N times."}
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {cfg.triggerMode === "specific" && (
+            {(cfg.triggerMode === "specific" || cfg.triggerMode === "th_dpst") && (
               <Field label="Target Digit">
                 <select
                   className="input"
