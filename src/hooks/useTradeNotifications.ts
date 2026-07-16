@@ -22,7 +22,7 @@ export function useTradeNotifications(
   accounts: DerivAccount[],
   state: BotState | null,
 ) {
-  const ownerKey = getNotificationOwnerKey(accounts.map((a) => a.account_id));
+  const ownerKeys = getNotificationOwnerKeys(accounts.map((a) => a.account_id));
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     typeof window !== "undefined" && "Notification" in window
       ? Notification.permission
