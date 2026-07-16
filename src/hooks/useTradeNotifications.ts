@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BotEvent, BotState } from "@/lib/derivBot";
 import type { DerivAccount } from "@deriv/core";
 import { notificationsSupported, pushRequiresInstall } from "@/lib/pwa";
 import {
   ensurePushSubscription,
-  getNotificationOwnerKey,
+  getNotificationOwnerKeys,
   sendPushToDevices,
   showLocalNotification,
   disablePushSubscription,
@@ -22,7 +22,12 @@ export function useTradeNotifications(
   accounts: DerivAccount[],
   state: BotState | null,
 ) {
-  const ownerKey = getNotificationOwnerKey(accounts.map((a) => a.account_id));
+  const accountIdsKey = accounts.map((a) => a.account_id).sort().join("|");
+  const ownerKeys = useMemo(
+    () => getNotificationOwnerKeys(accountIdsKey ? accountIdsKey.split("|") : []),
+    [accountIdsKey],
+  );
+
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     typeof window !== "undefined" && "Notification" in window
       ? Notification.permission
@@ -42,14 +47,14 @@ export function useTradeNotifications(
       if (permission === "granted" && wantsPush) void showLocalNotification(payload);
       // Remote push always fires — so laptop-run trades still reach the phone
       // even when this device hasn't granted browser permission (or has it toggled off).
-      if (!ownerKey) return;
+      if (!ownerKeys.length) return;
       try {
-        await sendPushToDevices(ownerKey, payload);
+        await sendPushToDevices(ownerKeys, payload);
       } catch (e) {
         console.warn("Push send failed", e);
       }
     },
-    [ownerKey, permission, wantsPush],
+    [ownerKeys, permission, wantsPush],
   );
 
   const enable = useCallback(async () => {
@@ -62,9 +67,9 @@ export function useTradeNotifications(
     }
     const perm = await Notification.requestPermission();
     setPermission(perm);
-    if (perm !== "granted" || !ownerKey) return perm === "granted";
+    if (perm !== "granted" || !ownerKeys.length) return perm === "granted";
     try {
-      await ensurePushSubscription(ownerKey);
+      await ensurePushSubscription(ownerKeys);
       await notifyAllDevices({
         title: "Notifications enabled",
         body: "You'll get trade alerts on every signed-in device.",
@@ -81,7 +86,7 @@ export function useTradeNotifications(
     setWantsPush(true);
     localStorage.setItem("smrttrdr.push_enabled", "true");
     return true;
-  }, [supported, ownerKey, notifyAllDevices]);
+  }, [supported, ownerKeys, notifyAllDevices]);
 
   const disable = useCallback(async () => {
     try {
@@ -95,9 +100,9 @@ export function useTradeNotifications(
 
   // Re-register this device when permission is already granted (new browser / after update).
   useEffect(() => {
-    if (permission !== "granted" || !ownerKey || !wantsPush) return;
-    void ensurePushSubscription(ownerKey).catch(() => {});
-  }, [permission, ownerKey, wantsPush]);
+    if (permission !== "granted" || !ownerKeys.length || !wantsPush) return;
+    void ensurePushSubscription(ownerKeys).catch(() => {});
+  }, [permission, ownerKeys, wantsPush]);
 
   // Seed seen trades on mount so we don't notify for history.
   useEffect(() => {

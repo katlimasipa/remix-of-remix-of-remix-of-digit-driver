@@ -33,12 +33,34 @@ const SETUP_SQL = `
 CREATE TABLE IF NOT EXISTS public.push_devices (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_key text NOT NULL,
-  endpoint text NOT NULL UNIQUE,
+  endpoint text NOT NULL,
   p256dh text NOT NULL,
   auth text NOT NULL,
   user_agent text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+-- Migrate legacy UNIQUE(endpoint) → UNIQUE(endpoint, owner_key) so one
+-- device can subscribe under multiple owner keys (one per Deriv account).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.push_devices'::regclass
+      AND contype = 'u'
+      AND conname = 'push_devices_endpoint_key'
+  ) THEN
+    ALTER TABLE public.push_devices DROP CONSTRAINT push_devices_endpoint_key;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.push_devices'::regclass
+      AND contype = 'u'
+      AND conname = 'push_devices_endpoint_owner_key'
+  ) THEN
+    ALTER TABLE public.push_devices
+      ADD CONSTRAINT push_devices_endpoint_owner_key UNIQUE (endpoint, owner_key);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS push_devices_owner_idx ON public.push_devices(owner_key);
 GRANT ALL ON public.push_devices TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_devices TO anon, authenticated;
@@ -53,6 +75,7 @@ BEGIN
   END IF;
 END $$;
 `;
+
 
 async function ensurePushDevicesTable(): Promise<boolean> {
   const databaseUrl = process.env.DATABASE_URL ?? process.env.SUPABASE_DB_URL;
@@ -84,37 +107,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (action === "subscribe") {
-      const { ownerKey, endpoint, p256dh, auth, userAgent } = req.body ?? {};
-      if (!ownerKey || !endpoint || !p256dh || !auth) {
+      const { ownerKey, ownerKeys, endpoint, p256dh, auth, userAgent } = req.body ?? {};
+      const keys: string[] = Array.isArray(ownerKeys)
+        ? ownerKeys.map((k) => String(k))
+        : ownerKey
+          ? [String(ownerKey)]
+          : [];
+      if (!keys.length || !endpoint || !p256dh || !auth) {
         return res.status(400).json({ error: "Missing subscription fields" });
       }
       const supabase = getAdmin();
-      let { error } = await supabase.from("push_devices").upsert(
-        {
-          owner_key: String(ownerKey).slice(0, 500),
-          endpoint: String(endpoint).slice(0, 2000),
-          p256dh: String(p256dh).slice(0, 500),
-          auth: String(auth).slice(0, 500),
-          user_agent: userAgent ? String(userAgent).slice(0, 500) : null,
-        },
-        { onConflict: "endpoint" },
-      );
+      const rows = keys.map((k) => ({
+        owner_key: k.slice(0, 500),
+        endpoint: String(endpoint).slice(0, 2000),
+        p256dh: String(p256dh).slice(0, 500),
+        auth: String(auth).slice(0, 500),
+        user_agent: userAgent ? String(userAgent).slice(0, 500) : null,
+      }));
+      let { error } = await supabase
+        .from("push_devices")
+        .upsert(rows, { onConflict: "endpoint,owner_key" });
       if (error?.message?.includes("push_devices")) {
         const created = await ensurePushDevicesTable();
         if (created) {
-          ({ error } = await supabase.from("push_devices").upsert(
-            {
-              owner_key: String(ownerKey).slice(0, 500),
-              endpoint: String(endpoint).slice(0, 2000),
-              p256dh: String(p256dh).slice(0, 500),
-              auth: String(auth).slice(0, 500),
-              user_agent: userAgent ? String(userAgent).slice(0, 500) : null,
-            },
-            { onConflict: "endpoint" },
-          ));
+          ({ error } = await supabase
+            .from("push_devices")
+            .upsert(rows, { onConflict: "endpoint,owner_key" }));
+        }
+      }
+      // Fallback for legacy schema still using UNIQUE(endpoint).
+      if (error?.message?.toLowerCase().includes("on conflict")) {
+        const created = await ensurePushDevicesTable();
+        if (created) {
+          ({ error } = await supabase
+            .from("push_devices")
+            .upsert(rows, { onConflict: "endpoint,owner_key" }));
         }
       }
       if (error) return res.status(500).json({ error: error.message });
+      // Prune stale rows for this endpoint that belong to owner keys no longer active on this device.
+      await supabase
+        .from("push_devices")
+        .delete()
+        .eq("endpoint", String(endpoint))
+        .not("owner_key", "in", `(${keys.map((k) => `"${k.replace(/"/g, '""')}"`).join(",")})`);
       return res.status(200).json({ ok: true });
     }
 
@@ -127,18 +163,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (action === "send") {
-      const { ownerKey, title, body, tag, url, requireInteraction, vibrate } = req.body ?? {};
-      if (!ownerKey || !title) {
-        return res.status(400).json({ error: "Missing ownerKey or title" });
+      const { ownerKey, ownerKeys, title, body, tag, url, requireInteraction, vibrate } =
+        req.body ?? {};
+      const keys: string[] = Array.isArray(ownerKeys)
+        ? ownerKeys.map((k) => String(k))
+        : ownerKey
+          ? [String(ownerKey)]
+          : [];
+      if (!keys.length || !title) {
+        return res.status(400).json({ error: "Missing ownerKey(s) or title" });
       }
       configureWebPush();
       const supabase = getAdmin();
       const { data: subs, error } = await supabase
         .from("push_devices")
         .select("endpoint, p256dh, auth")
-        .eq("owner_key", String(ownerKey));
+        .in("owner_key", keys);
       if (error) return res.status(500).json({ error: error.message });
       if (!subs?.length) return res.status(200).json({ sent: 0 });
+      // Deduplicate by endpoint (a device may match multiple owner keys).
+      const uniq = new Map<string, { endpoint: string; p256dh: string; auth: string }>();
+      for (const s of subs) uniq.set(s.endpoint, s);
+      const unique = Array.from(uniq.values());
+
 
       const payload = JSON.stringify({
         title: String(title).slice(0, 120),
@@ -152,7 +199,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const expired: string[] = [];
       let sent = 0;
       await Promise.all(
-        subs.map(async (s) => {
+        unique.map(async (s) => {
+
           try {
             await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

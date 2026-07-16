@@ -1,7 +1,13 @@
 import { VAPID_PUBLIC_KEY, registerServiceWorker, subscribePush, unsubscribePush } from "@/lib/pwa";
 
-export function getNotificationOwnerKey(accountIds: string[]): string {
-  return [...accountIds].sort().join("|");
+/**
+ * Returns one owner key per Deriv account. Push rows are keyed per-account so
+ * that any device signed in to at least one of these accounts still receives
+ * the push — even if the two devices have different subsets of accounts logged
+ * in (e.g. laptop has [demo, real], phone has [real] only).
+ */
+export function getNotificationOwnerKeys(accountIds: string[]): string[] {
+  return Array.from(new Set(accountIds.filter(Boolean))).sort();
 }
 
 async function pushApi(action: string, body?: Record<string, unknown>) {
@@ -17,7 +23,8 @@ async function pushApi(action: string, body?: Record<string, unknown>) {
   return data;
 }
 
-export async function ensurePushSubscription(ownerKey: string): Promise<boolean> {
+export async function ensurePushSubscription(ownerKeys: string[]): Promise<boolean> {
+  if (!ownerKeys.length) return false;
   const reg = await registerServiceWorker();
   if (!reg) return false;
   await navigator.serviceWorker.ready;
@@ -26,7 +33,7 @@ export async function ensurePushSubscription(ownerKey: string): Promise<boolean>
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
   await pushApi("subscribe", {
-    ownerKey,
+    ownerKeys,
     endpoint: json.endpoint,
     p256dh: json.keys.p256dh,
     auth: json.keys.auth,
@@ -34,6 +41,7 @@ export async function ensurePushSubscription(ownerKey: string): Promise<boolean>
   });
   return true;
 }
+
 
 export async function disablePushSubscription(): Promise<boolean> {
   const reg = await registerServiceWorker();
@@ -51,7 +59,7 @@ export async function disablePushSubscription(): Promise<boolean> {
 }
 
 export async function sendPushToDevices(
-  ownerKey: string,
+  ownerKeys: string[],
   payload: {
     title: string;
     body: string;
@@ -61,8 +69,10 @@ export async function sendPushToDevices(
     vibrate?: number[];
   },
 ): Promise<void> {
-  await pushApi("send", { ownerKey, ...payload });
+  if (!ownerKeys.length) return;
+  await pushApi("send", { ownerKeys, ...payload });
 }
+
 
 export async function showLocalNotification(payload: {
   title: string;
