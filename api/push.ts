@@ -199,7 +199,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const expired: string[] = [];
       let sent = 0;
       await Promise.all(
-        subs.map(async (s) => {
+        unique.map(async (s) => {
+
           try {
             await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
