@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BotEvent, BotState } from "@/lib/derivBot";
 import type { DerivAccount } from "@deriv/core";
 import { notificationsSupported, pushRequiresInstall } from "@/lib/pwa";
