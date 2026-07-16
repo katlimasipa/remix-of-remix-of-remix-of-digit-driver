@@ -59,7 +59,7 @@ export async function disablePushSubscription(): Promise<boolean> {
 }
 
 export async function sendPushToDevices(
-  ownerKey: string,
+  ownerKeys: string[],
   payload: {
     title: string;
     body: string;
@@ -69,8 +69,10 @@ export async function sendPushToDevices(
     vibrate?: number[];
   },
 ): Promise<void> {
-  await pushApi("send", { ownerKey, ...payload });
+  if (!ownerKeys.length) return;
+  await pushApi("send", { ownerKeys, ...payload });
 }
+
 
 export async function showLocalNotification(payload: {
   title: string;
