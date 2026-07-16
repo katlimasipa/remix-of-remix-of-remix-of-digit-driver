@@ -4,7 +4,7 @@ import type { DerivAccount } from "@deriv/core";
 import { notificationsSupported, pushRequiresInstall } from "@/lib/pwa";
 import {
   ensurePushSubscription,
-  getNotificationOwnerKey,
+  getNotificationOwnerKeys,
   sendPushToDevices,
   showLocalNotification,
   disablePushSubscription,
