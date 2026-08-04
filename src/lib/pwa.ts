@@ -1,7 +1,7 @@
 // PWA registration with Lovable preview guard.
 // VAPID public key (safe to expose to the browser).
 export const VAPID_PUBLIC_KEY =
-  "BBylyccuMFUplQBEl3J7m4CxBgb2NzdG5HpjnAO3pc5QbvHAyEVXa0emIiA-RA10eX-JeUnY5DGpNbJANWOyfLw";
+  "BIxX1GfQuYZgk_5CZRU20jnef4kCS4zA4IHtgncuLGtW_toSZUpDHr0Iip1B-SadS0oU7CT3aWQ95FLCQYdWoxA";
 
 function isPreviewHost(): boolean {
   if (typeof window === "undefined") return true;
@@ -29,7 +29,9 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
           .filter((r) => (r.active?.scriptURL || "").endsWith("/sw.js"))
           .map((r) => r.unregister()),
       );
-    } catch {}
+    } catch {
+      // A preview may deny access to existing registrations.
+    }
     return null;
   }
   try {
@@ -54,8 +56,17 @@ export async function subscribePush(
 ): Promise<PushSubscription | null> {
   if (!("PushManager" in window)) return null;
   let sub = await reg.pushManager.getSubscription();
+  const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  const currentKey = sub?.options.applicationServerKey
+    ? new Uint8Array(sub.options.applicationServerKey)
+    : null;
+  const keyMatches =
+    currentKey?.length === key.length && currentKey.every((value, index) => value === key[index]);
+  if (sub && !keyMatches) {
+    await sub.unsubscribe();
+    sub = null;
+  }
   if (!sub) {
-    const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: key.buffer.slice(
