@@ -54,8 +54,17 @@ export async function subscribePush(
 ): Promise<PushSubscription | null> {
   if (!("PushManager" in window)) return null;
   let sub = await reg.pushManager.getSubscription();
+  const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  const currentKey = sub?.options.applicationServerKey
+    ? new Uint8Array(sub.options.applicationServerKey)
+    : null;
+  const keyMatches =
+    currentKey?.length === key.length && currentKey.every((value, index) => value === key[index]);
+  if (sub && !keyMatches) {
+    await sub.unsubscribe();
+    sub = null;
+  }
   if (!sub) {
-    const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: key.buffer.slice(
