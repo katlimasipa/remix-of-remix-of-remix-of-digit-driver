@@ -29,7 +29,9 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
           .filter((r) => (r.active?.scriptURL || "").endsWith("/sw.js"))
           .map((r) => r.unregister()),
       );
-    } catch {}
+    } catch {
+      // A preview may deny access to existing registrations.
+    }
     return null;
   }
   try {

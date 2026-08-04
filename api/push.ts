@@ -9,8 +9,7 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:notify@smrttrdr.app";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function getAdmin() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -30,7 +29,7 @@ async function requireUserId(req: VercelRequest): Promise<string | null> {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const { data, error } = await getAdmin().auth.getUser(token);
-  return error ? null : data.user?.id ?? null;
+  return error ? null : (data.user?.id ?? null);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -76,7 +75,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { endpoint } = req.body ?? {};
       if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
       const supabase = getAdmin();
-      await supabase.from("push_devices").delete().eq("user_id", userId).eq("endpoint", String(endpoint));
+      await supabase
+        .from("push_devices")
+        .delete()
+        .eq("user_id", userId)
+        .eq("endpoint", String(endpoint));
       return res.status(200).json({ ok: true });
     }
 
@@ -91,11 +94,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq("user_id", userId);
       if (error) return res.status(500).json({ error: error.message });
       if (!subs?.length) return res.status(200).json({ sent: 0 });
-      // Deduplicate by endpoint (a device may match multiple owner keys).
+      // Deduplicate defensively in case a stale duplicate exists.
       const uniq = new Map<string, { endpoint: string; p256dh: string; auth: string }>();
       for (const s of subs) uniq.set(s.endpoint, s);
       const unique = Array.from(uniq.values());
-
 
       const payload = JSON.stringify({
         title: String(title).slice(0, 120),
@@ -110,7 +112,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let sent = 0;
       await Promise.all(
         unique.map(async (s) => {
-
           try {
             await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
