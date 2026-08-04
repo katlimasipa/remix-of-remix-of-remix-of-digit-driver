@@ -27,6 +27,8 @@ export type BotConfig = {
   stopLoss: number;
   takeProfit: number;
   triggerMode: TriggerMode;
+  /** Sub-strategies included in the TH DPST cycle. Empty/undefined = all six. */
+  thDpstModes?: Exclude<TriggerMode, "th_dpst">[];
 };
 
 export type Trade = {
@@ -115,6 +117,12 @@ export class DerivBot {
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
 
+  /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
+  private cycleModes(): Exclude<TriggerMode, "th_dpst">[] {
+    const sel = this.cfg.thDpstModes?.filter((m) => TH_DPST_CYCLE.includes(m)) ?? [];
+    return sel.length ? sel : [...TH_DPST_CYCLE];
+  }
+
   private shuffleArray<T>(array: T[]): T[] {
     const arr = [...array];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -127,7 +135,7 @@ export class DerivBot {
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
     if (cfg.triggerMode === "th_dpst") {
-      this.state.remainingCycle = this.shuffleArray(TH_DPST_CYCLE);
+      this.state.remainingCycle = this.shuffleArray(this.cycleModes());
     }
   }
 
@@ -168,7 +176,15 @@ export class DerivBot {
 
   updateConfig(p: Partial<BotConfig>) {
     const previousUrl = this.cfg.wsUrl;
+    const previousModes = (this.cfg.thDpstModes ?? []).join(",");
+    const previousTrigger = this.cfg.triggerMode;
     this.cfg = { ...this.cfg, ...p };
+    if (
+      (p.thDpstModes !== undefined && p.thDpstModes.join(",") !== previousModes) ||
+      (p.triggerMode !== undefined && p.triggerMode !== previousTrigger)
+    ) {
+      this.patch({ remainingCycle: this.shuffleArray(this.cycleModes()) });
+    }
     if (
       p.wsUrl &&
       p.wsUrl !== previousUrl &&
@@ -440,9 +456,10 @@ export class DerivBot {
 
   private async placeTrade(barrierDigit: number, mode: Exclude<TriggerMode, "th_dpst">) {
     if (this.cfg.triggerMode === "th_dpst") {
-      let nextCycle = this.state.remainingCycle.filter(m => m !== mode);
+      const allowed = this.cycleModes();
+      let nextCycle = this.state.remainingCycle.filter((m) => m !== mode && allowed.includes(m));
       if (nextCycle.length === 0) {
-        nextCycle = this.shuffleArray(TH_DPST_CYCLE);
+        nextCycle = this.shuffleArray(allowed);
       }
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null, remainingCycle: nextCycle });
     } else {
@@ -613,7 +630,7 @@ export class DerivBot {
       streak: 0,
       streakDigit: null,
       error: null,
-      remainingCycle: this.cfg.triggerMode === "th_dpst" ? this.shuffleArray(TH_DPST_CYCLE) : [...TH_DPST_CYCLE],
+      remainingCycle: this.shuffleArray(this.cycleModes()),
     });
   }
 

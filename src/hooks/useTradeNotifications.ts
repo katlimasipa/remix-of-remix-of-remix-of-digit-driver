@@ -21,11 +21,17 @@ type NotifyPayload = {
 export function useTradeNotifications(
   accounts: DerivAccount[],
   state: BotState | null,
+  extraOwnerKeys: string[] = [],
 ) {
+  const extraKey = extraOwnerKeys.filter(Boolean).sort().join("|");
   const accountIdsKey = accounts.map((a) => a.account_id).sort().join("|");
   const ownerKeys = useMemo(
-    () => getNotificationOwnerKeys(accountIdsKey ? accountIdsKey.split("|") : []),
-    [accountIdsKey],
+    () =>
+      getNotificationOwnerKeys([
+        ...(accountIdsKey ? accountIdsKey.split("|") : []),
+        ...(extraKey ? extraKey.split("|") : []),
+      ]),
+    [accountIdsKey, extraKey],
   );
 
   const [permission, setPermission] = useState<NotificationPermission>(() =>

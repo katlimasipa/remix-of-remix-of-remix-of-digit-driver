@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
@@ -39,6 +40,17 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
+const TH_DPST_ALL = ["specific", "any", "xxyyy", "xxxyy", "odd", "even"] as const satisfies readonly Exclude<TriggerMode, "th_dpst">[];
+
+const TH_DPST_LABELS: Record<Exclude<TriggerMode, "th_dpst">, string> = {
+  specific: "Specific digit",
+  any: "Any digit",
+  xxyyy: "XXYYY = Z",
+  xxxyy: "XXXYY = Z",
+  odd: "Odd reps",
+  even: "Even reps",
+};
+
 function useAnimatedNumber(value: number, duration = 400) {
   const [v, setV] = useState(value);
   const ref = useRef(value);
@@ -65,6 +77,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
+  const appAuth = useAppAuth();
   const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
   const { theme, toggle: toggleTheme } = useTheme();
   const s = state ?? {
@@ -179,7 +192,18 @@ function Dashboard() {
     () => computeStreakHighlights(digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount),
     [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
   );
-  const notifications = useTradeNotifications(accounts, s);
+  const dpstModes = useMemo(
+    () =>
+      cfg.thDpstModes?.length
+        ? TH_DPST_ALL.filter((m) => cfg.thDpstModes!.includes(m))
+        : [...TH_DPST_ALL],
+    [cfg.thDpstModes],
+  );
+  const userOwnerKeys = useMemo(
+    () => (appAuth.userId ? [`user:${appAuth.userId}`] : []),
+    [appAuth.userId],
+  );
+  const notifications = useTradeNotifications(accounts, s, userOwnerKeys);
 
   // Fire push notifications on bot start / stop events.
   const notifyBotEventRef = useRef(notifications.notifyBotEvent);
@@ -206,7 +230,15 @@ function Dashboard() {
     );
   }
   
-  if (authState !== 'authenticated' || !activeAccount) {
+  if (appAuth.loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!appAuth.user || authState !== 'authenticated' || !activeAccount) {
     return <AuthScreen />;
   }
 
@@ -397,7 +429,7 @@ function Dashboard() {
                 <SelectItem value="xxxyy">XXXYY = Z</SelectItem>
                 <SelectItem value="odd">Odd reps</SelectItem>
                 <SelectItem value="even">Even reps</SelectItem>
-                <SelectItem value="th_dpst">TH DPST Strtgy (cycle all)</SelectItem>
+                <SelectItem value="th_dpst">TH DPST Strtgy (combo)</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -416,8 +448,57 @@ function Dashboard() {
                         ? "Runs one trade of each strategy in a random order per cycle, then repeats."
                         : "Trades when the target digit repeats N times."}
           </p>
+          {cfg.triggerMode === "th_dpst" && (
+            <div className="rounded-md border border-border bg-surface/40 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-medium">Strategies in cycle</span>
+                <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-[hsl(var(--primary))]"
+                    checked={dpstModes.length === TH_DPST_ALL.length}
+                    onChange={(e) =>
+                      setCfg({
+                        ...cfg,
+                        thDpstModes: e.target.checked ? [...TH_DPST_ALL] : ["specific"],
+                      })
+                    }
+                  />
+                  All
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {TH_DPST_ALL.map((m) => (
+                  <label
+                    key={m}
+                    className="flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground/90"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-[hsl(var(--primary))]"
+                      checked={dpstModes.includes(m)}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? [...dpstModes, m]
+                          : dpstModes.filter((x) => x !== m);
+                        if (!next.length) return;
+                        setCfg({
+                          ...cfg,
+                          thDpstModes: TH_DPST_ALL.filter((x) => next.includes(x)),
+                        });
+                      }}
+                    />
+                    {TH_DPST_LABELS[m]}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground/80">
+                One trade per selected strategy, random order, then the cycle repeats.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            {(cfg.triggerMode === "specific" || cfg.triggerMode === "th_dpst") && (
+            {(cfg.triggerMode === "specific" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("specific"))) && (
               <Field label="Target Digit">
                 <Select 
                   value={cfg.targetDigit.toString()} 
@@ -437,7 +518,7 @@ function Dashboard() {
               </Field>
             )}
             {/* Specific digit repetitions */}
-            {(cfg.triggerMode === "specific" || cfg.triggerMode === "th_dpst") && (
+            {(cfg.triggerMode === "specific" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("specific"))) && (
               <Field label={cfg.triggerMode === "th_dpst" ? "Specific Reps" : "Repetitions"}>
                 <NumInput
                   value={cfg.repetitionCount}
@@ -448,7 +529,7 @@ function Dashboard() {
               </Field>
             )}
             {/* Any digit repetitions */}
-            {(cfg.triggerMode === "any" || cfg.triggerMode === "th_dpst") && (
+            {(cfg.triggerMode === "any" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("any"))) && (
               <Field label={cfg.triggerMode === "th_dpst" ? "Any Reps" : "Repetitions"}>
                 <NumInput
                   value={cfg.anyRepetitions}
@@ -459,7 +540,7 @@ function Dashboard() {
               </Field>
             )}
             {/* Odd digit repetitions */}
-            {(cfg.triggerMode === "odd" || cfg.triggerMode === "th_dpst") && (
+            {(cfg.triggerMode === "odd" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("odd"))) && (
               <Field label={cfg.triggerMode === "th_dpst" ? "Odd Reps" : "Repetitions"}>
                 <NumInput
                   value={cfg.oddRepetitions}
@@ -470,7 +551,7 @@ function Dashboard() {
               </Field>
             )}
             {/* Even digit repetitions */}
-            {(cfg.triggerMode === "even" || cfg.triggerMode === "th_dpst") && (
+            {(cfg.triggerMode === "even" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("even"))) && (
               <Field label={cfg.triggerMode === "th_dpst" ? "Even Reps" : "Repetitions"}>
                 <NumInput
                   value={cfg.evenRepetitions}
