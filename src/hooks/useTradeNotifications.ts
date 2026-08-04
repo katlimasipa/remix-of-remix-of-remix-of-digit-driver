@@ -110,6 +110,25 @@ export function useTradeNotifications(
     void ensurePushSubscription(ownerKeys).catch(() => {});
   }, [permission, ownerKeys, wantsPush]);
 
+  // iOS can rotate or invalidate a push endpoint while the PWA is suspended.
+  // Reconcile it with the signed-in app profile whenever this device resumes.
+  useEffect(() => {
+    if (permission !== "granted" || !ownerKeys.length || !wantsPush) return;
+    const reconcile = () => {
+      if (document.visibilityState === "visible") {
+        void ensurePushSubscription(ownerKeys).catch((error) => {
+          console.warn("Push subscription refresh failed", error);
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", reconcile);
+    window.addEventListener("pageshow", reconcile);
+    return () => {
+      document.removeEventListener("visibilitychange", reconcile);
+      window.removeEventListener("pageshow", reconcile);
+    };
+  }, [permission, ownerKeys, wantsPush]);
+
   // Seed seen trades on mount so we don't notify for history.
   useEffect(() => {
     if (!state?.trades) return;
