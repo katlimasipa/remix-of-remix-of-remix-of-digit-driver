@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import type { TriggerMode } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
@@ -76,6 +77,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 
 function Dashboard() {
   const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
+  const appAuth = useAppAuth();
   const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
   const { theme, toggle: toggleTheme } = useTheme();
   const s = state ?? {
@@ -197,7 +199,11 @@ function Dashboard() {
         : [...TH_DPST_ALL],
     [cfg.thDpstModes],
   );
-  const notifications = useTradeNotifications(accounts, s);
+  const userOwnerKeys = useMemo(
+    () => (appAuth.userId ? [`user:${appAuth.userId}`] : []),
+    [appAuth.userId],
+  );
+  const notifications = useTradeNotifications(accounts, s, userOwnerKeys);
 
   // Fire push notifications on bot start / stop events.
   const notifyBotEventRef = useRef(notifications.notifyBotEvent);
@@ -224,7 +230,15 @@ function Dashboard() {
     );
   }
   
-  if (authState !== 'authenticated' || !activeAccount) {
+  if (appAuth.loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!appAuth.user || authState !== 'authenticated' || !activeAccount) {
     return <AuthScreen />;
   }
 
