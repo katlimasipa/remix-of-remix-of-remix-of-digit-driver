@@ -451,48 +451,67 @@ function Dashboard() {
           {cfg.triggerMode === "th_dpst" && (
             <div className="rounded-md border border-border bg-surface/40 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-medium">Strategies in cycle</span>
-                <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 accent-[hsl(var(--primary))]"
-                    checked={dpstModes.length === TH_DPST_ALL.length}
-                    onChange={(e) =>
-                      setCfg({
-                        ...cfg,
-                        thDpstModes: e.target.checked ? [...TH_DPST_ALL] : ["specific"],
-                      })
-                    }
-                  />
-                  All
-                </label>
+                <span className="text-[11px] font-medium tracking-tight">Strategies in cycle</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCfg({
+                      ...cfg,
+                      thDpstModes:
+                        dpstModes.length === TH_DPST_ALL.length ? ["specific"] : [...TH_DPST_ALL],
+                    })
+                  }
+                  className="rounded-md border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                >
+                  {dpstModes.length === TH_DPST_ALL.length ? "Clear" : "All"}
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
-                {TH_DPST_ALL.map((m) => (
-                  <label
-                    key={m}
-                    className="flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground/90"
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-3.5 w-3.5 accent-[hsl(var(--primary))]"
-                      checked={dpstModes.includes(m)}
-                      onChange={(e) => {
-                        const next = e.target.checked
-                          ? [...dpstModes, m]
-                          : dpstModes.filter((x) => x !== m);
+                {TH_DPST_ALL.map((m) => {
+                  const on = dpstModes.includes(m);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        const next = on ? dpstModes.filter((x) => x !== m) : [...dpstModes, m];
                         if (!next.length) return;
                         setCfg({
                           ...cfg,
                           thDpstModes: TH_DPST_ALL.filter((x) => next.includes(x)),
                         });
                       }}
-                    />
-                    {TH_DPST_LABELS[m]}
-                  </label>
-                ))}
+                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors ${
+                        on
+                          ? "border-primary/50 bg-primary/10 text-foreground"
+                          : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span
+                        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[3px] border transition-colors ${
+                          on ? "border-primary bg-primary" : "border-border"
+                        }`}
+                      >
+                        {on && (
+                          <svg
+                            viewBox="0 0 10 8"
+                            className="h-2 w-2 stroke-primary-foreground"
+                            fill="none"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M1 4.2 3.6 6.8 9 1.4" />
+                          </svg>
+                        )}
+                      </span>
+                      {TH_DPST_LABELS[m]}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground/80">
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/80">
                 One trade per selected strategy, random order, then the cycle repeats.
               </p>
             </div>
