@@ -66,7 +66,10 @@ export type BotState = {
   error: string | null;
   pendingTrade: boolean;
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
+  /** Whether a prior pattern occurrence has already failed (armed to trade next time). */
+  patternArmed: { xxyyy: boolean; xxxyy: boolean };
 };
+
 
 export type BotEvent =
   | { type: "trade_settled"; trade: Trade; pnl: number }
