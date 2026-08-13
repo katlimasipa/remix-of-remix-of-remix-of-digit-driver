@@ -112,6 +112,8 @@ export class DerivBot {
     error: null,
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
+    patternArmed: { xxyyy: false, xxxyy: false },
+
   };
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
