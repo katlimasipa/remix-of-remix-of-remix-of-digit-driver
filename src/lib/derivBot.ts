@@ -666,6 +666,8 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
+    this.patternWatch = { xxyyy: null, xxxyy: null };
+
     this.patch({
       pnl: 0,
       wins: 0,
