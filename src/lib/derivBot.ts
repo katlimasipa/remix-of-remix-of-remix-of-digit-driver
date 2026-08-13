@@ -29,7 +29,12 @@ export type BotConfig = {
   triggerMode: TriggerMode;
   /** Sub-strategies included in the TH DPST cycle. Empty/undefined = all six. */
   thDpstModes?: Exclude<TriggerMode, "th_dpst">[];
+  /** Wait for one XXYYY=Z pattern to fail before entering a trade on the next one. */
+  xxyyyWaitFail?: boolean;
+  /** Wait for one XXXYY=Z pattern to fail before entering a trade on the next one. */
+  xxxyyWaitFail?: boolean;
 };
+
 
 export type Trade = {
   id: string;
