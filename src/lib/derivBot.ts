@@ -678,6 +678,8 @@ export class DerivBot {
       streakDigit: null,
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
+      patternArmed: { xxyyy: false, xxxyy: false },
+
     });
   }
 
