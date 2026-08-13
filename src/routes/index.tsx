@@ -99,6 +99,8 @@ function Dashboard() {
     error: null,
     pendingTrade: false,
     remainingCycle: [] as ("specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even")[],
+    patternArmed: { xxyyy: false, xxxyy: false },
+
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
@@ -448,6 +450,76 @@ function Dashboard() {
                         ? "Runs one trade of each strategy in a random order per cycle, then repeats."
                         : "Trades when the target digit repeats N times."}
           </p>
+          {(() => {
+            const showXxyyy =
+              cfg.triggerMode === "xxyyy" ||
+              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxyyy"));
+            const showXxxyy =
+              cfg.triggerMode === "xxxyy" ||
+              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxxyy"));
+            if (!showXxyyy && !showXxxyy) return null;
+            const rows: { key: "xxyyyWaitFail" | "xxxyyWaitFail"; label: string; armed: boolean }[] = [];
+            if (showXxyyy)
+              rows.push({ key: "xxyyyWaitFail", label: "XXYYY = Z", armed: !!s?.patternArmed?.xxyyy });
+            if (showXxxyy)
+              rows.push({ key: "xxxyyWaitFail", label: "XXXYY = Z", armed: !!s?.patternArmed?.xxxyy });
+            return (
+              <div className="rounded-md border border-border bg-surface/40 p-3">
+                <span className="text-[11px] font-medium tracking-tight">Wait for a failed cycle</span>
+                <div className="mt-2 grid gap-1.5">
+                  {rows.map((r) => {
+                    const on = !!cfg[r.key];
+                    return (
+                      <button
+                        key={r.key}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setCfg({ ...cfg, [r.key]: !on })}
+                        className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors ${
+                          on
+                            ? "border-primary/50 bg-primary/10 text-foreground"
+                            : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <span
+                          className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[3px] border transition-colors ${
+                            on ? "border-primary bg-primary" : "border-border"
+                          }`}
+                        >
+                          {on && (
+                            <svg
+                              viewBox="0 0 10 8"
+                              className="h-2 w-2 stroke-primary-foreground"
+                              fill="none"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M1 4.2 3.6 6.8 9 1.4" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className="flex-1">{r.label}</span>
+                        {on && (
+                          <span
+                            className={`font-mono text-[9px] uppercase tracking-wider ${
+                              r.armed ? "text-warn" : "text-muted-foreground"
+                            }`}
+                          >
+                            {r.armed ? "Armed" : "Waiting"}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/80">
+                  Skips the first pattern match and only trades after one occurrence would have lost.
+                </p>
+              </div>
+            );
+          })()}
+
           {cfg.triggerMode === "th_dpst" && (
             <div className="rounded-md border border-border bg-surface/40 p-3">
               <div className="mb-2 flex items-center justify-between">
