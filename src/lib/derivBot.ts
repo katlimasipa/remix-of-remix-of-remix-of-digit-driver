@@ -126,6 +126,11 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
+  private patternWatch: { xxyyy: number | null; xxxyy: number | null } = {
+    xxyyy: null,
+    xxxyy: null,
+  };
+
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
   private cycleModes(): Exclude<TriggerMode, "th_dpst">[] {
