@@ -15,7 +15,10 @@ const DEFAULT_CFG: BotConfig = {
   takeProfit: 10,
   triggerMode: "specific",
   thDpstModes: ["specific", "any", "xxyyy", "xxxyy", "odd", "even"],
+  xxyyyWaitFail: false,
+  xxxyyWaitFail: false,
 };
+
 
 export function useDerivBot() {
   const botRef = useRef<DerivBot | null>(null);
