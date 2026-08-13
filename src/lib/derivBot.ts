@@ -395,6 +395,17 @@ export class DerivBot {
 
     if (this.cooldown > 0) this.cooldown -= 1;
 
+    // Resolve any "virtual" pattern trade waiting on this tick.
+    (["xxyyy", "xxxyy"] as const).forEach((m) => {
+      const watched = this.patternWatch[m];
+      if (watched === null) return;
+      this.patternWatch[m] = null;
+      // DIGITDIFF loses when the next digit equals the barrier -> the cycle failed.
+      if (digit === watched) {
+        this.patch({ patternArmed: { ...this.state.patternArmed, [m]: true } });
+      }
+    });
+
     // Pattern buffers for xxyyy / xxxyy
     let xxyyyTrigger = false;
     let xxyyyBarrier: number | null = null;
@@ -417,6 +428,20 @@ export class DerivBot {
         xxxyyBarrier = t0; // Y is the barrier
       }
     }
+
+    // "Wait for a failed cycle" gating: observe the first occurrence instead of trading it.
+    const gate = (m: "xxyyy" | "xxxyy", triggered: boolean, barrierDigit: number | null) => {
+      const waitEnabled = m === "xxyyy" ? this.cfg.xxyyyWaitFail : this.cfg.xxxyyWaitFail;
+      if (!waitEnabled || !triggered || barrierDigit === null) return triggered;
+      if (this.state.patternArmed[m]) return true;
+      // Track this occurrence as a virtual trade; trade only after it fails.
+      this.patternWatch[m] = barrierDigit;
+      return false;
+    };
+
+    xxyyyTrigger = gate("xxyyy", xxyyyTrigger, xxyyyBarrier);
+    xxxyyTrigger = gate("xxxyy", xxxyyTrigger, xxxyyBarrier);
+
 
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
       const availableModes = this.cfg.triggerMode === "th_dpst" ? this.state.remainingCycle : [this.cfg.triggerMode];
