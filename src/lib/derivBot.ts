@@ -505,8 +505,13 @@ export class DerivBot {
     } else {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
+    if (mode === "xxyyy" || mode === "xxxyy") {
+      this.patternWatch[mode] = null;
+      this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
+    }
     this.streakDigit = null;
     this.cooldown = 2;
+
 
     try {
       const proposal = await this.send({
