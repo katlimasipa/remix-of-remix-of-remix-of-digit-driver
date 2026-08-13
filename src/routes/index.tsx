@@ -99,6 +99,8 @@ function Dashboard() {
     error: null,
     pendingTrade: false,
     remainingCycle: [] as ("specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even")[],
+    patternArmed: { xxyyy: false, xxxyy: false },
+
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
