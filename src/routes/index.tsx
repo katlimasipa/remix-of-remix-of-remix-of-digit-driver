@@ -445,7 +445,7 @@ function Dashboard() {
       <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
         {/* LEFT: Controls */}
         <section
-          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "controls" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
+          className={`bg-background p-4 sm:p-5 space-y-3.5 ${mobileTab === "controls" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
           <SectionLabel>Connection</SectionLabel>
 
@@ -785,9 +785,9 @@ function Dashboard() {
 
         {/* CENTER: Live tick + digit */}
         <section
-          className={`bg-background p-4 sm:p-6 space-y-6 ${mobileTab === "live" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
+          className={`bg-background p-4 sm:p-6 space-y-4 ${mobileTab === "live" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
-          <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Panel
               title="Last Digit"
               hint={`${cfg.symbol === "1HZ100V" ? "Volatility 100 Index" : cfg.symbol}`}
@@ -795,7 +795,7 @@ function Dashboard() {
               <div className="flex items-end justify-between gap-6">
                 <div
                   key={s?.lastDigit ?? "—"}
-                  className={`font-mono text-[112px] leading-none tracking-tight tick-pulse ${
+                  className={`font-mono text-[clamp(64px,9vw,96px)] leading-none tracking-tight tick-pulse ${
                     cfg.triggerMode === "any" || s?.lastDigit === cfg.targetDigit
                       ? "text-primary digit-glow"
                       : "text-foreground"
@@ -964,7 +964,7 @@ function Dashboard() {
 
         {/* RIGHT: Stats */}
         <section
-          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
+          className={`bg-background p-4 sm:p-5 space-y-3.5 ${mobileTab === "stats" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
           <SectionLabel>Session</SectionLabel>
           <div
@@ -1108,10 +1108,10 @@ function Dashboard() {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-[11px] font-semibold uppercase tracking-wider text-foreground mb-3">{children}</h2>;
+  return <h2 className="text-[11px] font-semibold uppercase tracking-wider text-foreground mb-2">{children}</h2>;
 }
 function Divider() {
-  return <hr className="border-border my-6" />;
+  return <hr className="border-border my-3" />;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
