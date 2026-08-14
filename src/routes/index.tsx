@@ -258,8 +258,9 @@ function Dashboard() {
         : "Connecting…";
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] lg:pb-0 px-safe">
-      <header className="flex items-center justify-between border-b border-border px-3 sm:px-6 py-3 gap-2">
+    <div className="min-h-[100dvh] bg-background text-foreground pb-8 px-safe">
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-3 sm:px-6 py-2.5 gap-2 h-[3.25rem]">
+
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="h-6 w-6 shrink-0 rounded-sm bg-primary/20 grid place-items-center">
             <div className="h-2 w-2 rounded-sm bg-primary" />
@@ -351,6 +352,93 @@ function Dashboard() {
           </button>
         </div>
       </header>
+
+      {/* Command bar — always visible, all screen sizes */}
+      <div className="sticky top-[3.25rem] z-40 border-b border-border bg-surface/70 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/60">
+        <div className="flex items-center gap-2 px-3 sm:px-6 py-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 pr-2 mr-1 border-r border-border/70 shrink-0">
+            <span
+              className={`status-dot inline-block h-1.5 w-1.5 rounded-full ${statusColor}`}
+              style={{ backgroundColor: "currentColor" }}
+            />
+            <span className={`text-[11px] font-medium ${statusColor}`}>{statusLabel}</span>
+          </div>
+
+          <div className="flex items-baseline gap-1.5 pr-3 mr-1 border-r border-border/70 shrink-0">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Net P/L</span>
+            <span
+              className={`font-mono text-sm font-semibold tabular-nums ${
+                pnlAnim >= 0 ? "text-bull" : "text-bear"
+              }`}
+            >
+              {pnlAnim >= 0 ? "+" : ""}
+              {pnlAnim.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="hidden sm:flex items-baseline gap-1.5 pr-3 mr-1 border-r border-border/70 shrink-0">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Trades</span>
+            <span className="font-mono text-sm font-semibold tabular-nums">{s?.totalTrades ?? 0}</span>
+          </div>
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-2 shrink-0">
+            {!s?.running ? (
+              <button className="btn-primary px-4" onClick={start} disabled={!s?.authorized}>
+                Start Bot
+              </button>
+            ) : (
+              <button className="btn-danger px-4" onClick={stop}>
+                Stop Bot
+              </button>
+            )}
+            <button className="btn-ghost" onClick={reset} title="Reset session stats">
+              Reset
+            </button>
+            <button
+              onClick={handleEndSession}
+              className="btn-secondary inline-flex items-center gap-1.5 whitespace-nowrap"
+              disabled={!s || s.totalTrades === 0}
+              title="Save the current session to history and reset stats"
+            >
+              <Save className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">End &amp; Save</span>
+              <span className="sm:hidden">Save</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Top tabs (small screens) */}
+        <div className="lg:hidden px-3 sm:px-6 pb-2">
+          <div className="grid grid-cols-3 rounded-lg border border-border bg-background/60 p-0.5">
+            {(
+              [
+                { id: "controls", label: "Controls", icon: Settings2 },
+                { id: "live", label: "Live", icon: Activity },
+                { id: "stats", label: "Stats", icon: BarChart3 },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => {
+              const active = mobileTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setMobileTab(id)}
+                  className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-[11px] font-medium transition-all ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
 
       <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
         {/* LEFT: Controls */}
