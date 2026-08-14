@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
@@ -22,7 +22,7 @@ import { useTheme } from "@/hooks/useTheme";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ThDpstSmrtTrdr — Digits Differ Bot" },
+      { title: "ThDpstSmrtTrdr â€” Digits Differ Bot" },
       {
         name: "description",
         content: "Automated Digits Differ trading on Volatility 100 via Deriv API.",
@@ -138,7 +138,7 @@ function Dashboard() {
   };
 
   // Keep bot configured with the latest wsUrl (fresh OTP for next reconnect).
-  // Do NOT disconnect on wsUrl refresh — that killed the bot on tab-change.
+  // Do NOT disconnect on wsUrl refresh â€” that killed the bot on tab-change.
   useEffect(() => {
     setCfg((c) => ({ ...c, wsUrl }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,7 +229,7 @@ function Dashboard() {
   if (authState === 'authenticating') {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
-        Authenticating…
+        Authenticatingâ€¦
       </div>
     );
   }
@@ -237,7 +237,7 @@ function Dashboard() {
   if (appAuth.loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
-        Loading…
+        Loadingâ€¦
       </div>
     );
   }
@@ -257,7 +257,7 @@ function Dashboard() {
       ? "Running"
       : s?.authorized
         ? "Idle"
-        : "Connecting…";
+        : "Connectingâ€¦";
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground pb-8 px-safe">
@@ -269,7 +269,7 @@ function Dashboard() {
           </div>
           <h1 className="font-display text-sm sm:text-base font-semibold tracking-tight truncate">
             ThDpstSmrtTrdr
-            <span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
+            <span className="hidden sm:inline text-muted-foreground"> Â· Digits Differ</span>
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-xs shrink-0">
@@ -283,7 +283,7 @@ function Dashboard() {
           <div className="text-muted-foreground font-mono">
             <span className="hidden sm:inline">{s?.currency} </span>
             <span className="text-foreground">
-              {s?.balance != null ? s.balance.toFixed(2) : "—"}
+              {s?.balance != null ? s.balance.toFixed(2) : "â€”"}
             </span>
           </div>
           
@@ -319,7 +319,7 @@ function Dashboard() {
                   : notifications.enabled
                     ? "Trade notifications enabled on all devices"
                     : notifications.denied
-                      ? "Notifications blocked — enable in browser settings"
+                      ? "Notifications blocked â€” enable in browser settings"
                       : "Enable trade notifications on all devices"
               }
             >
@@ -355,7 +355,7 @@ function Dashboard() {
         </div>
       </header>
 
-      {/* Command bar — always visible, all screen sizes */}
+      {/* Command bar â€” always visible, all screen sizes */}
       <div className="sticky top-[3.25rem] z-40 border-b border-border bg-surface/70 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/60">
         <div className="flex items-center gap-2 px-3 sm:px-6 py-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 pr-2 mr-1 border-r border-border/70 shrink-0">
@@ -459,14 +459,14 @@ function Dashboard() {
                 <SelectContent>
                   {accounts.map((acc) => (
                     <SelectItem key={acc.account_id} value={acc.account_id}>
-                      {acc.account_id} — {acc.account_type === 'demo' ? 'Demo' : 'Real'}
+                      {acc.account_id} â€” {acc.account_type === 'demo' ? 'Demo' : 'Real'}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
               <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
-                {activeAccount.account_id} · {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
+                {activeAccount.account_id} Â· {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
               </div>
             )}
             {activeAccount.account_type === 'real' && (
@@ -501,7 +501,7 @@ function Dashboard() {
             onClick={() => connect()}
             disabled={!wsUrl || s?.connected}
           >
-            {s?.authorized ? "Connected" : s?.connected ? "Authorizing…" : "Connect Bot"}
+            {s?.authorized ? "Connected" : s?.connected ? "Authorizingâ€¦" : "Connect Bot"}
           </button>
 
           <Divider />
@@ -794,25 +794,25 @@ function Dashboard() {
             >
               <div className="flex items-end justify-between gap-6">
                 <div
-                  key={s?.lastDigit ?? "—"}
+                  key={s?.lastDigit ?? "â€”"}
                   className={`font-mono text-[clamp(64px,9vw,96px)] leading-none tracking-tight tick-pulse ${
                     cfg.triggerMode === "any" || s?.lastDigit === cfg.targetDigit
                       ? "text-primary digit-glow"
                       : "text-foreground"
                   }`}
                 >
-                  {s?.lastDigit ?? "—"}
+                  {s?.lastDigit ?? "â€”"}
                 </div>
                 <div className="text-right space-y-1">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">
                     Price
                   </div>
-                  <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
+                  <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "â€”"}</div>
                   <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
                     {cfg.triggerMode === "any" ||
                     cfg.triggerMode === "odd" ||
                     cfg.triggerMode === "even"
-                      ? `Reps (digit ${s?.streakDigit ?? "—"})`
+                      ? `Reps (digit ${s?.streakDigit ?? "â€”"})`
                       : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
                         ? "Pattern"
                         : "Streak"}
@@ -851,7 +851,7 @@ function Dashboard() {
                   );
                 })}
                 {digits.length === 0 && (
-                  <span className="text-xs text-muted-foreground">Waiting for ticks…</span>
+                  <span className="text-xs text-muted-foreground">Waiting for ticksâ€¦</span>
                 )}
               </div>
             </Panel>
@@ -867,7 +867,7 @@ function Dashboard() {
                         </span>
                         <span>{t.price.toFixed(2)}</span>
                         <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
-                          ·{t.digit}
+                          Â·{t.digit}
                         </span>
                       </li>
                     ))}
@@ -914,7 +914,7 @@ function Dashboard() {
                       <thead className="sticky top-0 bg-background text-xs uppercase tracking-wider text-muted-foreground">
                         <tr className="text-left">
                           <th className="py-2 pr-4 font-medium">Time</th>
-                          <th className="py-2 pr-4 font-medium">Differ ≠</th>
+                          <th className="py-2 pr-4 font-medium">Differ â‰ </th>
                           <th className="py-2 pr-4 font-medium">Mode</th>
                           <th className="py-2 pr-4 font-medium">Stake</th>
                           <th className="py-2 pr-4 font-medium">Result</th>
@@ -943,7 +943,7 @@ function Dashboard() {
                               className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
                             >
                               {t.profit == null
-                                ? "—"
+                                ? "â€”"
                                 : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
                             </td>
                           </tr>
@@ -1014,6 +1014,7 @@ function Dashboard() {
 
           <Divider />
           <SectionLabel>Bot</SectionLabel>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
           <Row k="Status" v={statusLabel} />
           <Row k="Pending" v={s?.pendingTrade ? "yes" : "no"} />
           <Row
@@ -1053,7 +1054,7 @@ function Dashboard() {
               cfg.triggerMode === "any" ||
               cfg.triggerMode === "odd" ||
               cfg.triggerMode === "even"
-                ? `Reps waited (digit ${s?.streakDigit ?? "—"})`
+                ? `Reps waited (digit ${s?.streakDigit ?? "â€”"})`
                 : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
                   ? "Pattern streak"
                   : cfg.triggerMode === "th_dpst"
@@ -1064,6 +1065,7 @@ function Dashboard() {
           />
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
+          </div>
 
 
 
