@@ -104,6 +104,8 @@ function Dashboard() {
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
+  const [feedTab, setFeedTab] = useState<"log" | "history">("log");
+
   const sessionStartRef = useRef<number>(Date.now());
   const shouldStayConnectedRef = useRef(false);
   const reconnectingRef = useRef(false);
