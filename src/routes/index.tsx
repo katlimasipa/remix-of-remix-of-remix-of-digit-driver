@@ -877,60 +877,88 @@ function Dashboard() {
             </Panel>
           </div>
 
-          <Panel
-            title="Trade Log"
-            hint={`${s?.trades.length ?? 0} trade${(s?.trades.length ?? 0) === 1 ? "" : "s"}`}
-          >
-            {s?.trades.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr className="text-left">
-                      <th className="py-2 pr-4 font-medium">Time</th>
-                      <th className="py-2 pr-4 font-medium">Differ ≠</th>
-                      <th className="py-2 pr-4 font-medium">Mode</th>
-                      <th className="py-2 pr-4 font-medium">Stake</th>
-                      <th className="py-2 pr-4 font-medium">Result</th>
-                      <th className="py-2 pr-0 font-medium text-right">P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-mono">
-                    {s.trades.map((t) => (
-                      <tr key={t.id} className="border-t border-border">
-                        <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
-                          {formatDateTime(t.time)}
-                        </td>
-                        <td className="py-2 pr-4">{t.digit}</td>
-                        <td className="py-2 pr-4 text-muted-foreground">{t.mode || "-"}</td>
-                        <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
-                        <td className="py-2 pr-4">
-                          {t.status === "open" ? (
-                            <span className="text-warn">open</span>
-                          ) : t.status === "won" ? (
-                            <span className="text-bull">win</span>
-                          ) : (
-                            <span className="text-bear">loss</span>
-                          )}
-                        </td>
-                        <td
-                          className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
-                        >
-                          {t.profit == null
-                            ? "—"
-                            : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <EmptyState>Trades will appear here once the bot fires.</EmptyState>
-            )}
-          </Panel>
+          <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
+            <div className="flex items-center gap-1 border-b border-border bg-surface/50 px-2 py-1.5">
+              {(
+                [
+                  { id: "log", label: "Trade Log" },
+                  { id: "history", label: "Session History" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setFeedTab(id)}
+                  className={`rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    feedTab === id
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              {feedTab === "log" && (
+                <span className="ml-auto pr-1 font-mono text-[11px] text-muted-foreground">
+                  {s?.trades.length ?? 0} trade{(s?.trades.length ?? 0) === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
 
-          <SessionHistory currentAccountId={activeAccount.account_id} />
+            <div className="p-3 sm:p-4">
+              {feedTab === "log" ? (
+                s?.trades.length ? (
+                  <div className="overflow-x-auto max-h-[38dvh] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-background text-xs uppercase tracking-wider text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="py-2 pr-4 font-medium">Time</th>
+                          <th className="py-2 pr-4 font-medium">Differ ≠</th>
+                          <th className="py-2 pr-4 font-medium">Mode</th>
+                          <th className="py-2 pr-4 font-medium">Stake</th>
+                          <th className="py-2 pr-4 font-medium">Result</th>
+                          <th className="py-2 pr-0 font-medium text-right">P/L</th>
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono">
+                        {s.trades.map((t) => (
+                          <tr key={t.id} className="border-t border-border">
+                            <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
+                              {formatDateTime(t.time)}
+                            </td>
+                            <td className="py-2 pr-4">{t.digit}</td>
+                            <td className="py-2 pr-4 text-muted-foreground">{t.mode || "-"}</td>
+                            <td className="py-2 pr-4">{t.buyPrice.toFixed(2)}</td>
+                            <td className="py-2 pr-4">
+                              {t.status === "open" ? (
+                                <span className="text-warn">open</span>
+                              ) : t.status === "won" ? (
+                                <span className="text-bull">win</span>
+                              ) : (
+                                <span className="text-bear">loss</span>
+                              )}
+                            </td>
+                            <td
+                              className={`py-2 pr-0 text-right ${t.profit == null ? "" : t.profit >= 0 ? "text-bull" : "text-bear"}`}
+                            >
+                              {t.profit == null
+                                ? "—"
+                                : `${t.profit >= 0 ? "+" : ""}${t.profit.toFixed(2)}`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <EmptyState>Trades will appear here once the bot fires.</EmptyState>
+                )
+              ) : (
+                <SessionHistory currentAccountId={activeAccount.account_id} />
+              )}
+            </div>
+          </div>
         </section>
+
 
         {/* RIGHT: Stats */}
         <section
