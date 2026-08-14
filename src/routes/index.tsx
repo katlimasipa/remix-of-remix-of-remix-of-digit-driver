@@ -1004,32 +1004,7 @@ function Dashboard() {
       <Footer />
       <PwaInstallBanner aboveNav />
 
-      {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
-        <div className="grid grid-cols-3">
-          {(
-            [
-              { id: "controls", label: "Controls", icon: Settings2 },
-              { id: "live", label: "Live", icon: Activity },
-              { id: "stats", label: "Stats", icon: BarChart3 },
-            ] as const
-          ).map(({ id, label, icon: Icon }) => {
-            const active = mobileTab === id;
-            return (
-              <button
-                key={id}
-                onClick={() => setMobileTab(id)}
-                className={`flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-medium transition-colors ${
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon className={`h-5 w-5 ${active ? "opacity-100" : "opacity-70"}`} />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+
     </div>
   );
 }
