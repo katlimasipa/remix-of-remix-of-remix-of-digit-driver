@@ -355,7 +355,7 @@ function Dashboard() {
       <main className="grid gap-px bg-border grid-cols-1 lg:[grid-template-columns:minmax(280px,320px)_1fr_minmax(260px,300px)]">
         {/* LEFT: Controls */}
         <section
-          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "controls" ? "" : "hidden"} lg:block`}
+          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "controls" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
           <SectionLabel>Connection</SectionLabel>
 
@@ -707,7 +707,7 @@ function Dashboard() {
 
         {/* CENTER: Live tick + digit */}
         <section
-          className={`bg-background p-4 sm:p-6 space-y-6 ${mobileTab === "live" ? "" : "hidden"} lg:block`}
+          className={`bg-background p-4 sm:p-6 space-y-6 ${mobileTab === "live" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
             <Panel
@@ -858,7 +858,7 @@ function Dashboard() {
 
         {/* RIGHT: Stats */}
         <section
-          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block`}
+          className={`bg-background p-4 sm:p-5 space-y-5 ${mobileTab === "stats" ? "" : "hidden"} lg:block lg:h-[calc(100dvh-7.25rem)] lg:overflow-y-auto`}
         >
           <SectionLabel>Session</SectionLabel>
           <div
