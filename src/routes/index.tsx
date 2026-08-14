@@ -1070,7 +1070,7 @@ function Dashboard() {
         .btn-ghost:hover { color: var(--foreground); }
       `}</style>
       <Footer />
-      <PwaInstallBanner aboveNav />
+      <PwaInstallBanner />
 
 
     </div>
