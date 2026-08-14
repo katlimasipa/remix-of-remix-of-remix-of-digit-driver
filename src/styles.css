@@ -126,7 +126,15 @@
 }
 
 @layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .pb-safe {
+
     padding-bottom: max(env(safe-area-inset-bottom), 0px);
   }
   .pt-safe {
