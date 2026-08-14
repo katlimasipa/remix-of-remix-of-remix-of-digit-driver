@@ -771,20 +771,8 @@ function Dashboard() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            {!s?.running ? (
-              <button className="btn-primary col-span-1" onClick={start} disabled={!s?.authorized}>
-                Start Bot
-              </button>
-            ) : (
-              <button className="btn-danger col-span-1" onClick={stop}>
-                Stop Bot
-              </button>
-            )}
-            <button className="btn-ghost" onClick={reset}>
-              Reset
-            </button>
-          </div>
+
+
 
           {s?.error && (
             <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">
@@ -1047,16 +1035,8 @@ function Dashboard() {
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
 
-          <Divider />
-          <button
-            onClick={handleEndSession}
-            className="btn-secondary w-full inline-flex items-center justify-center gap-2"
-            disabled={!s || s.totalTrades === 0}
-            title="Save the current session to history and reset stats"
-          >
-            <Save className="h-3.5 w-3.5" />
-            End & Save Session
-          </button>
+
+
         </section>
       </main>
 
