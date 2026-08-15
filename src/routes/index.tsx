@@ -40,13 +40,12 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-const TH_DPST_ALL = ["specific", "any", "xxyyy", "xxxyy", "odd", "even"] as const satisfies readonly Exclude<TriggerMode, "th_dpst">[];
+const TH_DPST_ALL = ["specific", "any", "xxxyyy", "odd", "even"] as const satisfies readonly Exclude<TriggerMode, "th_dpst">[];
 
 const TH_DPST_LABELS: Record<Exclude<TriggerMode, "th_dpst">, string> = {
   specific: "Specific digit",
   any: "Any digit",
-  xxyyy: "XXYYY = Z",
-  xxxyy: "XXXYY = Z",
+  xxxyyy: "XXXYYY = Z",
   odd: "Odd reps",
   even: "Even reps",
 };
@@ -98,8 +97,8 @@ function Dashboard() {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
-    remainingCycle: [] as ("specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even")[],
-    patternArmed: { xxyyy: false, xxxyy: false },
+    remainingCycle: [] as ("specific" | "any" | "xxxyyy" | "odd" | "even")[],
+    patternArmed: { xxxyyy: false },
 
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
@@ -517,8 +516,7 @@ function Dashboard() {
               <SelectContent>
                 <SelectItem value="specific">Specific digit</SelectItem>
                 <SelectItem value="any">Any digit</SelectItem>
-                <SelectItem value="xxyyy">XXYYY = Z</SelectItem>
-                <SelectItem value="xxxyy">XXXYY = Z</SelectItem>
+                <SelectItem value="xxxyyy">XXXYYY = Z</SelectItem>
                 <SelectItem value="odd">Odd reps</SelectItem>
                 <SelectItem value="even">Even reps</SelectItem>
                 <SelectItem value="th_dpst">TH DPST Strtgy (combo)</SelectItem>
@@ -528,10 +526,8 @@ function Dashboard() {
           <p className="text-[10px] text-muted-foreground/80 -mt-2">
             {cfg.triggerMode === "any"
               ? "Trades when any digit repeats N times in a row."
-              : cfg.triggerMode === "xxyyy"
-                ? "Detects XX YYY pattern; predicts next digit differs from Y."
-                : cfg.triggerMode === "xxxyy"
-                  ? "Detects XXX YY pattern; predicts next digit differs from Y."
+              : cfg.triggerMode === "xxxyyy"
+                  ? "Detects XXX YYY pattern; predicts next digit differs from Y."
                   : cfg.triggerMode === "odd"
                     ? "Trades when an odd digit repeats N times."
                     : cfg.triggerMode === "even"
@@ -541,18 +537,12 @@ function Dashboard() {
                         : "Trades when the target digit repeats N times."}
           </p>
           {(() => {
-            const showXxyyy =
-              cfg.triggerMode === "xxyyy" ||
-              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxyyy"));
-            const showXxxyy =
-              cfg.triggerMode === "xxxyy" ||
-              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxxyy"));
-            if (!showXxyyy && !showXxxyy) return null;
-            const rows: { key: "xxyyyWaitFail" | "xxxyyWaitFail"; label: string; armed: boolean }[] = [];
-            if (showXxyyy)
-              rows.push({ key: "xxyyyWaitFail", label: "XXYYY = Z", armed: !!s?.patternArmed?.xxyyy });
-            if (showXxxyy)
-              rows.push({ key: "xxxyyWaitFail", label: "XXXYY = Z", armed: !!s?.patternArmed?.xxxyy });
+            const showXxxyyy =
+              cfg.triggerMode === "xxxyyy" ||
+              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxxyyy"));
+            if (!showXxxyyy) return null;
+            const rows: { key: "xxxyyyWaitFail"; label: string; armed: boolean }[] = [];
+            rows.push({ key: "xxxyyyWaitFail", label: "XXXYYY = Z", armed: !!s?.patternArmed?.xxxyyy });
             return (
               <div className="rounded-md border border-border bg-surface/40 p-3">
                 <span className="text-[11px] font-medium tracking-tight">Wait for a failed cycle</span>
@@ -813,14 +803,14 @@ function Dashboard() {
                     cfg.triggerMode === "odd" ||
                     cfg.triggerMode === "even"
                       ? `Reps (digit ${s?.streakDigit ?? "—"})`
-                      : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                      : cfg.triggerMode === "xxxyyy"
                         ? "Pattern"
                         : "Streak"}
                   </div>
                   <div className="font-mono text-xl">
                     <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
                     <span className="text-muted-foreground">
-                      {cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                      {cfg.triggerMode === "xxxyyy"
                         ? ""
                         : ` / ${cfg.repetitionCount}`}
                     </span>
@@ -1024,10 +1014,8 @@ function Dashboard() {
                 ? `Dpst (${s?.remainingCycle.length || 0} left)`
                 : cfg.triggerMode === "any"
                   ? "Any digit"
-                  : cfg.triggerMode === "xxyyy"
-                    ? "XXYYY = Z"
-                    : cfg.triggerMode === "xxxyy"
-                      ? "XXXYY = Z"
+                  : cfg.triggerMode === "xxxyyy"
+                      ? "XXXYYY = Z"
                       : cfg.triggerMode === "odd"
                         ? "Odd reps"
                         : cfg.triggerMode === "even"
@@ -1038,7 +1026,7 @@ function Dashboard() {
           <Row
             k="Repetitions required"
             v={
-              (cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy")
+              (cfg.triggerMode === "xxxyyy")
                 ? "Pattern"
                 : cfg.triggerMode === "any"
                   ? String(cfg.anyRepetitions)
@@ -1055,7 +1043,7 @@ function Dashboard() {
               cfg.triggerMode === "odd" ||
               cfg.triggerMode === "even"
                 ? `Reps waited (digit ${s?.streakDigit ?? "—"})`
-                : cfg.triggerMode === "xxyyy" || cfg.triggerMode === "xxxyy"
+                : cfg.triggerMode === "xxxyyy"
                   ? "Pattern streak"
                   : cfg.triggerMode === "th_dpst"
                     ? `Simultaneous Cycle`
@@ -1206,23 +1194,15 @@ function computeStreakHighlights(
   const out: (string | null)[] = digits.map(() => null);
   if (!digits.length) return out;
 
-  // Pattern modes: highlight the last 5 ticks (indices 0..4) if they match XXYYY / XXXYY.
-  if (mode === "xxyyy" || mode === "xxxyy") {
-    if (digits.length >= 5) {
-      const [d0, d1, d2, d3, d4] = digits;
-      const matchXxyyy = mode === "xxyyy" && d0 === d1 && d1 === d2 && d3 === d4 && d0 !== d3;
-      const matchXxxyy = mode === "xxxyy" && d0 === d1 && d2 === d3 && d3 === d4 && d0 !== d2;
-      if (matchXxyyy || matchXxxyy) {
-        // Two colors: one for the "XX"/"XXX" run, another for the "YYY"/"YY" run.
+  // Pattern mode: highlight the last 6 ticks (indices 0..5) if they match XXXYYY.
+  if (mode === "xxxyyy") {
+    if (digits.length >= 6) {
+      const [d0, d1, d2, d3, d4, d5] = digits;
+      if (d0 === d1 && d1 === d2 && d3 === d4 && d4 === d5 && d0 !== d3) {
         const cA = DIGIT_COLORS[d0];
-        const cB = DIGIT_COLORS[d4];
-        if (mode === "xxyyy") {
-          out[0] = out[1] = out[2] = cA;
-          out[3] = out[4] = cB;
-        } else {
-          out[0] = out[1] = cA;
-          out[2] = out[3] = out[4] = cB;
-        }
+        const cB = DIGIT_COLORS[d3];
+        out[0] = out[1] = out[2] = cA;
+        out[3] = out[4] = out[5] = cB;
       }
     }
     return out;
