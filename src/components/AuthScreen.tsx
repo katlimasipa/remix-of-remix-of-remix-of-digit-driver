@@ -68,7 +68,7 @@ export function AuthScreen() {
                   disabled={app.busy}
                   className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
                 >
-                  {app.busy ? "Please wait…" : mode === "signup" ? "Create profile" : "Log in"}
+                  {app.busy ? "Please wait..." : mode === "signup" ? "Create profile" : "Log in"}
                 </button>
                 <button
                   type="button"
@@ -96,7 +96,7 @@ export function AuthScreen() {
                   disabled={authState === "authenticating"}
                   className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
                 >
-                  {authState === "authenticating" ? "Authenticating…" : "Log In with Deriv"}
+                  {authState === "authenticating" ? "Authenticating..." : "Log In with Deriv"}
                 </button>
 
                 <button
