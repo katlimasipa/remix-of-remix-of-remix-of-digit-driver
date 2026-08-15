@@ -1,15 +1,14 @@
 // Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100
 // Uses OAuth WebSocket URL with OTP from @deriv/core.
 
-export type TriggerMode = "specific" | "any" | "xxyyy" | "xxxyy" | "odd" | "even" | "th_dpst";
+export type TriggerMode = "specific" | "any" | "xxxyyy" | "odd" | "even" | "th_dpst";
 
 // TH DPST Strtgy cycles through these six sub-strategies, one trade per step,
 // then loops back to the beginning until stop-loss / take-profit / manual stop.
 const TH_DPST_CYCLE: Exclude<TriggerMode, "th_dpst">[] = [
   "specific",
   "any",
-  "xxyyy",
-  "xxxyy",
+  "xxxyyy",
   "odd",
   "even",
 ];
@@ -29,10 +28,8 @@ export type BotConfig = {
   triggerMode: TriggerMode;
   /** Sub-strategies included in the TH DPST cycle. Empty/undefined = all six. */
   thDpstModes?: Exclude<TriggerMode, "th_dpst">[];
-  /** Wait for one XXYYY=Z pattern to fail before entering a trade on the next one. */
-  xxyyyWaitFail?: boolean;
-  /** Wait for one XXXYY=Z pattern to fail before entering a trade on the next one. */
-  xxxyyWaitFail?: boolean;
+  /** Wait for one XXXYYY=Z pattern to fail before entering a trade on the next one. */
+  xxxyyyWaitFail?: boolean;
 };
 
 
@@ -67,7 +64,7 @@ export type BotState = {
   pendingTrade: boolean;
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
   /** Whether a prior pattern occurrence has already failed (armed to trade next time). */
-  patternArmed: { xxyyy: boolean; xxxyy: boolean };
+  patternArmed: { xxxyyy: boolean };
 };
 
 
@@ -112,7 +109,7 @@ export class DerivBot {
     error: null,
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
-    patternArmed: { xxyyy: false, xxxyy: false },
+    patternArmed: { xxxyyy: false },
 
   };
   private reqId = 1;
@@ -126,9 +123,8 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
-  private patternWatch: { xxyyy: number | null; xxxyy: number | null } = {
-    xxyyy: null,
-    xxxyy: null,
+  private patternWatch: { xxxyyy: number | null } = {
+    xxxyyy: null,
   };
 
 
@@ -401,7 +397,7 @@ export class DerivBot {
     if (this.cooldown > 0) this.cooldown -= 1;
 
     // Resolve any "virtual" pattern trade waiting on this tick.
-    (["xxyyy", "xxxyy"] as const).forEach((m) => {
+    (["xxxyyy"] as const).forEach((m) => {
       const watched = this.patternWatch[m];
       if (watched === null) return;
       this.patternWatch[m] = null;
@@ -411,32 +407,27 @@ export class DerivBot {
       }
     });
 
-    // Pattern buffers for xxyyy / xxxyy
-    let xxyyyTrigger = false;
-    let xxyyyBarrier: number | null = null;
-    let xxxyyTrigger = false;
-    let xxxyyBarrier: number | null = null;
+    // Pattern buffer for xxxyyy (three of one digit, then three of another)
+    let xxxyyyTrigger = false;
+    let xxxyyyBarrier: number | null = null;
 
-    if (this.state.ticks.length >= 5) {
+    if (this.state.ticks.length >= 6) {
       const t0 = this.state.ticks[0].digit;
       const t1 = this.state.ticks[1].digit;
       const t2 = this.state.ticks[2].digit;
       const t3 = this.state.ticks[3].digit;
       const t4 = this.state.ticks[4].digit;
+      const t5 = this.state.ticks[5].digit;
 
-      if (t0 === t1 && t1 === t2 && t3 === t4 && t0 !== t3) {
-        xxyyyTrigger = true;
-        xxyyyBarrier = t0; // Y is the barrier
-      }
-      if (t0 === t1 && t2 === t3 && t3 === t4 && t0 !== t2) {
-        xxxyyTrigger = true;
-        xxxyyBarrier = t0; // Y is the barrier
+      if (t0 === t1 && t1 === t2 && t3 === t4 && t4 === t5 && t0 !== t3) {
+        xxxyyyTrigger = true;
+        xxxyyyBarrier = t0; // Y is the barrier
       }
     }
 
     // "Wait for a failed cycle" gating: observe the first occurrence instead of trading it.
-    const gate = (m: "xxyyy" | "xxxyy", triggered: boolean, barrierDigit: number | null) => {
-      const waitEnabled = m === "xxyyy" ? this.cfg.xxyyyWaitFail : this.cfg.xxxyyWaitFail;
+    const gate = (m: "xxxyyy", triggered: boolean, barrierDigit: number | null) => {
+      const waitEnabled = this.cfg.xxxyyyWaitFail;
       if (!waitEnabled || !triggered || barrierDigit === null) return triggered;
       if (this.state.patternArmed[m]) return true;
       // Track this occurrence as a virtual trade; trade only after it fails.
@@ -444,8 +435,7 @@ export class DerivBot {
       return false;
     };
 
-    xxyyyTrigger = gate("xxyyy", xxyyyTrigger, xxyyyBarrier);
-    xxxyyTrigger = gate("xxxyy", xxxyyTrigger, xxxyyBarrier);
+    xxxyyyTrigger = gate("xxxyyy", xxxyyyTrigger, xxxyyyBarrier);
 
 
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
@@ -455,14 +445,9 @@ export class DerivBot {
       let barrier: number | null = null;
 
       for (const m of availableModes) {
-        if (m === "xxyyy" && xxyyyTrigger && xxyyyBarrier !== null) {
+        if (m === "xxxyyy" && xxxyyyTrigger && xxxyyyBarrier !== null) {
           triggeredMode = m;
-          barrier = xxyyyBarrier;
-          break;
-        }
-        if (m === "xxxyy" && xxxyyTrigger && xxxyyBarrier !== null) {
-          triggeredMode = m;
-          barrier = xxxyyBarrier;
+          barrier = xxxyyyBarrier;
           break;
         }
         if (m === "any" && streak >= this.cfg.anyRepetitions) {
@@ -505,7 +490,7 @@ export class DerivBot {
     } else {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
-    if (mode === "xxyyy" || mode === "xxxyy") {
+    if (mode === "xxxyyy") {
       this.patternWatch[mode] = null;
       this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
     }
@@ -666,7 +651,7 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
-    this.patternWatch = { xxyyy: null, xxxyy: null };
+    this.patternWatch = { xxxyyy: null };
 
     this.patch({
       pnl: 0,
@@ -678,7 +663,7 @@ export class DerivBot {
       streakDigit: null,
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
-      patternArmed: { xxyyy: false, xxxyy: false },
+      patternArmed: { xxxyyy: false },
 
     });
   }

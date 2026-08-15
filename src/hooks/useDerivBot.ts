@@ -14,9 +14,8 @@ const DEFAULT_CFG: BotConfig = {
   stopLoss: 10,
   takeProfit: 10,
   triggerMode: "specific",
-  thDpstModes: ["specific", "any", "xxyyy", "xxxyy", "odd", "even"],
-  xxyyyWaitFail: false,
-  xxxyyWaitFail: false,
+  thDpstModes: ["specific", "any", "xxxyyy", "odd", "even"],
+  xxxyyyWaitFail: false,
 };
 
 
