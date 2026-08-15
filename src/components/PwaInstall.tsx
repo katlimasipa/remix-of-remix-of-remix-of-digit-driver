@@ -34,7 +34,7 @@ function InstallSteps({ hint }: { hint: InstallBrowserHint }) {
     ],
     "desktop-chrome": [
       "Click the install icon in the address bar (⊕ or monitor icon).",
-      'Or open the browser menu (⋮) and choose "Install SmrtTrdr…".',
+      'Or open the browser menu (⋮) and choose "Install SmrtTrdr...".',
       "Confirm to add the app to your device.",
     ],
     generic: [
@@ -91,7 +91,7 @@ export function PwaInstallButton({ className = "", showLabel = true }: PwaInstal
       >
         <Download className="h-3.5 w-3.5" />
         {showLabel && (
-          <span className="hidden sm:inline">{installing ? "Installing…" : "Install"}</span>
+          <span className="hidden sm:inline">{installing ? "Installing..." : "Install"}</span>
         )}
       </button>
 
@@ -125,7 +125,7 @@ export function PwaInstallButton({ className = "", showLabel = true }: PwaInstal
               disabled={installing}
               className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
             >
-              {installing ? "Installing…" : "Install now"}
+              {installing ? "Installing..." : "Install now"}
             </button>
           )}
         </DialogContent>
@@ -181,7 +181,7 @@ export function PwaInstallBanner({ aboveNav = false }: PwaInstallBannerProps) {
                 disabled={installing}
                 className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:brightness-110 disabled:opacity-50"
               >
-                {installing ? "Installing…" : canNativeInstall ? "Install" : "How to install"}
+                {installing ? "Installing..." : canNativeInstall ? "Install" : "How to install"}
               </button>
               <button
                 type="button"
