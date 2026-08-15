@@ -228,7 +228,7 @@ function Dashboard() {
   if (authState === 'authenticating') {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
-        Authenticatingâ€¦
+        Authenticating...
       </div>
     );
   }
@@ -236,7 +236,7 @@ function Dashboard() {
   if (appAuth.loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-xs text-muted-foreground">
-        Loadingâ€¦
+        Loading...
       </div>
     );
   }
@@ -256,7 +256,7 @@ function Dashboard() {
       ? "Running"
       : s?.authorized
         ? "Idle"
-        : "Connectingâ€¦";
+        : "Connecting...";
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground pb-8 px-safe">
@@ -500,7 +500,7 @@ function Dashboard() {
             onClick={() => connect()}
             disabled={!wsUrl || s?.connected}
           >
-            {s?.authorized ? "Connected" : s?.connected ? "Authorizingâ€¦" : "Connect Bot"}
+            {s?.authorized ? "Connected" : s?.connected ? "Authorizing..." : "Connect Bot"}
           </button>
 
           <Divider />
@@ -841,7 +841,7 @@ function Dashboard() {
                   );
                 })}
                 {digits.length === 0 && (
-                  <span className="text-xs text-muted-foreground">Waiting for ticksâ€¦</span>
+                  <span className="text-xs text-muted-foreground">Waiting for ticks...</span>
                 )}
               </div>
             </Panel>
@@ -904,7 +904,7 @@ function Dashboard() {
                       <thead className="sticky top-0 bg-background text-xs uppercase tracking-wider text-muted-foreground">
                         <tr className="text-left">
                           <th className="py-2 pr-4 font-medium">Time</th>
-                          <th className="py-2 pr-4 font-medium">Differ â‰ </th>
+                          <th className="py-2 pr-4 font-medium">Differ !=</th>
                           <th className="py-2 pr-4 font-medium">Mode</th>
                           <th className="py-2 pr-4 font-medium">Stake</th>
                           <th className="py-2 pr-4 font-medium">Result</th>
