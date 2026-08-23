@@ -461,7 +461,6 @@ export class DerivBot {
       let barrier: number | null = null;
 
       for (const m of availableModes) {
-        if (m === "th_dpst") continue;
         const b = rawBarrier(m);
         if (b === null) continue;
         if (waitModes.includes(m) && !this.state.patternArmed[m]) {
@@ -652,7 +651,7 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
-    this.patternWatch = { xxxyyy: null };
+    this.patternWatch = emptyWatch();
 
     this.patch({
       pnl: 0,
@@ -664,7 +663,7 @@ export class DerivBot {
       streakDigit: null,
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
-      patternArmed: { xxxyyy: false },
+      patternArmed: emptyArmed(),
 
     });
   }
