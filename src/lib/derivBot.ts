@@ -82,10 +82,22 @@ type EventListener = (e: BotEvent) => void;
 
 const SYMBOL = "1HZ100V";
 
+type SubMode = Exclude<TriggerMode, "th_dpst">;
+const SUB_MODES: SubMode[] = ["specific", "any", "xxxyyy", "odd", "even"];
+
+function emptyArmed(): Record<SubMode, boolean> {
+  return { specific: false, any: false, xxxyyy: false, odd: false, even: false };
+}
+
+function emptyWatch(): Record<SubMode, number | null> {
+  return { specific: null, any: null, xxxyyy: null, odd: null, even: null };
+}
+
 function asFiniteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
+
 
 export class DerivBot {
   private ws: WebSocket | null = null;
