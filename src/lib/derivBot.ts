@@ -621,7 +621,23 @@ export class DerivBot {
     this.patch({ trades, pnl, wins, losses, totalTrades, pendingTrade: false });
 
     const settledTrade = trades.find((t) => t.id === contractId)!;
+
+    // Keep the "wait for a failed cycle" loop going: a real loss counts as the
+    // failed cycle (stay armed for the next entry), a win re-starts the wait so
+    // the pattern must fail virtually once more before the next trade.
+    const tradeMode = settledTrade.mode as SubMode | undefined;
+    if (tradeMode && (this.cfg.waitFailModes ?? []).includes(tradeMode)) {
+      this.patternWatch[tradeMode] = null;
+      this.patch({
+        patternArmed: {
+          ...this.state.patternArmed,
+          [tradeMode]: status === "lost",
+        },
+      });
+    }
+
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
+
 
     if (pnl <= -Math.abs(this.cfg.stopLoss)) {
       this.stop("stop_loss");
