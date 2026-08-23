@@ -64,8 +64,9 @@ export type BotState = {
   error: string | null;
   pendingTrade: boolean;
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
-  /** Whether a prior pattern occurrence has already failed (armed to trade next time). */
-  patternArmed: { xxxyyy: boolean };
+  /** Whether a prior occurrence has already failed (armed to trade next time), per strategy. */
+  patternArmed: Record<Exclude<TriggerMode, "th_dpst">, boolean>;
+
 };
 
 
