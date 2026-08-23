@@ -111,7 +111,7 @@ export class DerivBot {
     error: null,
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
-    patternArmed: { xxxyyy: false },
+    patternArmed: emptyArmed(),
 
   };
   private reqId = 1;
@@ -125,9 +125,8 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
-  private patternWatch: { xxxyyy: number | null } = {
-    xxxyyy: null,
-  };
+  private patternWatch: Record<SubMode, number | null> = emptyWatch();
+
 
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
