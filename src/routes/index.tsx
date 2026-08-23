@@ -98,7 +98,7 @@ function Dashboard() {
     error: null,
     pendingTrade: false,
     remainingCycle: [] as ("specific" | "any" | "xxxyyy" | "odd" | "even")[],
-    patternArmed: { xxxyyy: false },
+    patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false },
 
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
