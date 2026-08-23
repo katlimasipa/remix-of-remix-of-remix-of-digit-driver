@@ -28,9 +28,10 @@ export type BotConfig = {
   triggerMode: TriggerMode;
   /** Sub-strategies included in the TH DPST cycle. Empty/undefined = all six. */
   thDpstModes?: Exclude<TriggerMode, "th_dpst">[];
-  /** Wait for one XXXYYY=Z pattern to fail before entering a trade on the next one. */
-  xxxyyyWaitFail?: boolean;
+  /** Strategies that must see one failed cycle before a real trade is entered. */
+  waitFailModes?: Exclude<TriggerMode, "th_dpst">[];
 };
+
 
 
 export type Trade = {
@@ -63,8 +64,9 @@ export type BotState = {
   error: string | null;
   pendingTrade: boolean;
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
-  /** Whether a prior pattern occurrence has already failed (armed to trade next time). */
-  patternArmed: { xxxyyy: boolean };
+  /** Whether a prior occurrence has already failed (armed to trade next time), per strategy. */
+  patternArmed: Record<Exclude<TriggerMode, "th_dpst">, boolean>;
+
 };
 
 
@@ -80,10 +82,22 @@ type EventListener = (e: BotEvent) => void;
 
 const SYMBOL = "1HZ100V";
 
+type SubMode = Exclude<TriggerMode, "th_dpst">;
+const SUB_MODES: SubMode[] = ["specific", "any", "xxxyyy", "odd", "even"];
+
+function emptyArmed(): Record<SubMode, boolean> {
+  return { specific: false, any: false, xxxyyy: false, odd: false, even: false };
+}
+
+function emptyWatch(): Record<SubMode, number | null> {
+  return { specific: null, any: null, xxxyyy: null, odd: null, even: null };
+}
+
 function asFiniteNumber(value: unknown, fallback = 0): number {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
+
 
 export class DerivBot {
   private ws: WebSocket | null = null;
@@ -109,7 +123,7 @@ export class DerivBot {
     error: null,
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
-    patternArmed: { xxxyyy: false },
+    patternArmed: emptyArmed(),
 
   };
   private reqId = 1;
@@ -123,9 +137,8 @@ export class DerivBot {
   private wasAuthorized = false;
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
-  private patternWatch: { xxxyyy: number | null } = {
-    xxxyyy: null,
-  };
+  private patternWatch: Record<SubMode, number | null> = emptyWatch();
+
 
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
@@ -396,19 +409,22 @@ export class DerivBot {
 
     if (this.cooldown > 0) this.cooldown -= 1;
 
-    // Resolve any "virtual" pattern trade waiting on this tick.
-    (["xxxyyy"] as const).forEach((m) => {
+    // Resolve any "virtual" trade waiting on this tick.
+    let armed = this.state.patternArmed;
+    let armedChanged = false;
+    SUB_MODES.forEach((m) => {
       const watched = this.patternWatch[m];
       if (watched === null) return;
       this.patternWatch[m] = null;
       // DIGITDIFF loses when the next digit equals the barrier -> the cycle failed.
       if (digit === watched) {
-        this.patch({ patternArmed: { ...this.state.patternArmed, [m]: true } });
+        armed = { ...armed, [m]: true };
+        armedChanged = true;
       }
     });
+    if (armedChanged) this.patch({ patternArmed: armed });
 
     // Pattern buffer for xxxyyy (three of one digit, then three of another)
-    let xxxyyyTrigger = false;
     let xxxyyyBarrier: number | null = null;
 
     if (this.state.ticks.length >= 6) {
@@ -420,56 +436,41 @@ export class DerivBot {
       const t5 = this.state.ticks[5].digit;
 
       if (t0 === t1 && t1 === t2 && t3 === t4 && t4 === t5 && t0 !== t3) {
-        xxxyyyTrigger = true;
         xxxyyyBarrier = t0; // Y is the barrier
       }
     }
 
-    // "Wait for a failed cycle" gating: observe the first occurrence instead of trading it.
-    const gate = (m: "xxxyyy", triggered: boolean, barrierDigit: number | null) => {
-      const waitEnabled = this.cfg.xxxyyyWaitFail;
-      if (!waitEnabled || !triggered || barrierDigit === null) return triggered;
-      if (this.state.patternArmed[m]) return true;
-      // Track this occurrence as a virtual trade; trade only after it fails.
-      this.patternWatch[m] = barrierDigit;
-      return false;
+    // Raw trigger (barrier digit) per strategy, before wait-for-fail gating.
+    const rawBarrier = (m: SubMode): number | null => {
+      if (m === "xxxyyy") return xxxyyyBarrier;
+      if (m === "any") return streak >= this.cfg.anyRepetitions ? digit : null;
+      if (m === "odd")
+        return digit % 2 !== 0 && streak >= this.cfg.oddRepetitions ? digit : null;
+      if (m === "even")
+        return digit % 2 === 0 && streak >= this.cfg.evenRepetitions ? digit : null;
+      return digit === this.cfg.targetDigit && streak >= this.cfg.repetitionCount
+        ? this.cfg.targetDigit
+        : null;
     };
-
-    xxxyyyTrigger = gate("xxxyyy", xxxyyyTrigger, xxxyyyBarrier);
-
 
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
       const availableModes = this.cfg.triggerMode === "th_dpst" ? this.state.remainingCycle : [this.cfg.triggerMode];
+      const waitModes = this.cfg.waitFailModes ?? [];
 
-      let triggeredMode: Exclude<TriggerMode, "th_dpst"> | null = null;
+      let triggeredMode: SubMode | null = null;
       let barrier: number | null = null;
 
       for (const m of availableModes) {
-        if (m === "xxxyyy" && xxxyyyTrigger && xxxyyyBarrier !== null) {
-          triggeredMode = m;
-          barrier = xxxyyyBarrier;
-          break;
+        const b = rawBarrier(m);
+        if (b === null) continue;
+        if (waitModes.includes(m) && !this.state.patternArmed[m]) {
+          // Observe this occurrence as a virtual trade; trade only after it fails.
+          this.patternWatch[m] = b;
+          continue;
         }
-        if (m === "any" && streak >= this.cfg.anyRepetitions) {
-          triggeredMode = m;
-          barrier = digit;
-          break;
-        }
-        if (m === "odd" && digit % 2 !== 0 && streak >= this.cfg.oddRepetitions) {
-          triggeredMode = m;
-          barrier = digit;
-          break;
-        }
-        if (m === "even" && digit % 2 === 0 && streak >= this.cfg.evenRepetitions) {
-          triggeredMode = m;
-          barrier = digit;
-          break;
-        }
-        if (m === "specific" && digit === this.cfg.targetDigit && streak >= this.cfg.repetitionCount) {
-          triggeredMode = m;
-          barrier = this.cfg.targetDigit;
-          break;
-        }
+        triggeredMode = m;
+        barrier = b;
+        break;
       }
 
       if (triggeredMode !== null && barrier !== null) {
@@ -490,10 +491,9 @@ export class DerivBot {
     } else {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
-    if (mode === "xxxyyy") {
-      this.patternWatch[mode] = null;
-      this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
-    }
+    this.patternWatch[mode] = null;
+    this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
+
     this.streakDigit = null;
     this.cooldown = 2;
 
@@ -651,7 +651,7 @@ export class DerivBot {
   resetSession() {
     this.watchedContracts.clear();
     this.settledContracts.clear();
-    this.patternWatch = { xxxyyy: null };
+    this.patternWatch = emptyWatch();
 
     this.patch({
       pnl: 0,
@@ -663,7 +663,7 @@ export class DerivBot {
       streakDigit: null,
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
-      patternArmed: { xxxyyy: false },
+      patternArmed: emptyArmed(),
 
     });
   }

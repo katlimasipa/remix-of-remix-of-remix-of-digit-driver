@@ -98,7 +98,7 @@ function Dashboard() {
     error: null,
     pendingTrade: false,
     remainingCycle: [] as ("specific" | "any" | "xxxyyy" | "odd" | "even")[],
-    patternArmed: { xxxyyy: false },
+    patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false },
 
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
@@ -537,24 +537,46 @@ function Dashboard() {
                         : "Trades when the target digit repeats N times."}
           </p>
           {(() => {
-            const showXxxyyy =
-              cfg.triggerMode === "xxxyyy" ||
-              (cfg.triggerMode === "th_dpst" && dpstModes.includes("xxxyyy"));
-            if (!showXxxyyy) return null;
-            const rows: { key: "xxxyyyWaitFail"; label: string; armed: boolean }[] = [];
-            rows.push({ key: "xxxyyyWaitFail", label: "XXXYYY = Z", armed: !!s?.patternArmed?.xxxyyy });
+            const scope: Exclude<TriggerMode, "th_dpst">[] =
+              cfg.triggerMode === "th_dpst"
+                ? dpstModes
+                : [cfg.triggerMode as Exclude<TriggerMode, "th_dpst">];
+            if (!scope.length) return null;
+            const waitModes = cfg.waitFailModes ?? [];
+            const active = scope.filter((m) => waitModes.includes(m));
+            const allOn = active.length === scope.length;
+            const setWait = (next: Exclude<TriggerMode, "th_dpst">[]) =>
+              setCfg({ ...cfg, waitFailModes: TH_DPST_ALL.filter((x) => next.includes(x)) });
             return (
               <div className="rounded-md border border-border bg-surface/40 p-3">
-                <span className="text-[11px] font-medium tracking-tight">Wait for a failed cycle</span>
-                <div className="mt-2 grid gap-1.5">
-                  {rows.map((r) => {
-                    const on = !!cfg[r.key];
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-medium tracking-tight">Wait for a failed cycle</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setWait(
+                        allOn
+                          ? waitModes.filter((m) => !scope.includes(m))
+                          : [...waitModes, ...scope],
+                      )
+                    }
+                    className="rounded-md border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    {allOn ? "Clear" : "All"}
+                  </button>
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {scope.map((m) => {
+                    const on = waitModes.includes(m);
+                    const armed = !!s?.patternArmed?.[m];
                     return (
                       <button
-                        key={r.key}
+                        key={m}
                         type="button"
                         aria-pressed={on}
-                        onClick={() => setCfg({ ...cfg, [r.key]: !on })}
+                        onClick={() =>
+                          setWait(on ? waitModes.filter((x) => x !== m) : [...waitModes, m])
+                        }
                         className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors ${
                           on
                             ? "border-primary/50 bg-primary/10 text-foreground"
@@ -579,14 +601,14 @@ function Dashboard() {
                             </svg>
                           )}
                         </span>
-                        <span className="flex-1">{r.label}</span>
+                        <span className="flex-1">{TH_DPST_LABELS[m]}</span>
                         {on && (
                           <span
                             className={`font-mono text-[9px] uppercase tracking-wider ${
-                              r.armed ? "text-warn" : "text-muted-foreground"
+                              armed ? "text-warn" : "text-muted-foreground"
                             }`}
                           >
-                            {r.armed ? "Armed" : "Waiting"}
+                            {armed ? "Armed" : "Waiting"}
                           </span>
                         )}
                       </button>
@@ -594,10 +616,11 @@ function Dashboard() {
                   })}
                 </div>
                 <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/80">
-                  Skips the first pattern match and only trades after one occurrence would have lost.
+                  Skips the first trigger of a selected strategy and only trades after one occurrence would have lost.
                 </p>
               </div>
             );
+
           })()}
 
           {cfg.triggerMode === "th_dpst" && (
