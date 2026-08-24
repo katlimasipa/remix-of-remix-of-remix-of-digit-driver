@@ -409,20 +409,19 @@ export class DerivBot {
 
     if (this.cooldown > 0) this.cooldown -= 1;
 
-    // Resolve any "virtual" trade waiting on this tick.
+    // Resolve any "virtual" trade waiting on this tick: once the skipped
+    // occurrence has played out (one tick later), the strategy becomes armed
+    // and the next trigger is taken as a real trade.
     let armed = this.state.patternArmed;
     let armedChanged = false;
     SUB_MODES.forEach((m) => {
-      const watched = this.patternWatch[m];
-      if (watched === null) return;
+      if (this.patternWatch[m] === null) return;
       this.patternWatch[m] = null;
-      // DIGITDIFF loses when the next digit equals the barrier -> the cycle failed.
-      if (digit === watched) {
-        armed = { ...armed, [m]: true };
-        armedChanged = true;
-      }
+      armed = { ...armed, [m]: true };
+      armedChanged = true;
     });
     if (armedChanged) this.patch({ patternArmed: armed });
+
 
     // Pattern buffer for xxxyyy (three of one digit, then three of another)
     let xxxyyyBarrier: number | null = null;
