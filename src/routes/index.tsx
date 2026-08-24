@@ -616,7 +616,7 @@ function Dashboard() {
                   })}
                 </div>
                 <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/80">
-                  Skips the first trigger of a selected strategy and only trades after one occurrence would have lost.
+                  Skips the first trigger of a selected strategy, then trades on the next one. After a win it skips once again; after a loss it re-enters immediately.
                 </p>
               </div>
             );
