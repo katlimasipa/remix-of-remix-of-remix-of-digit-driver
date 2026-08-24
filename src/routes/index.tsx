@@ -1135,17 +1135,33 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 function NumInput({ value, min, step, onChange }: { value: number; min: number; step: number; onChange: (v: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <input
       type="number"
-      value={value || ""}
+      inputMode="decimal"
+      value={draft !== null ? draft : (value || "")}
       min={min}
       step={step}
-      onChange={(e) => onChange(parseFloat(e.target.value) || min)}
+      onFocus={(e) => {
+        setDraft("");
+        requestAnimationFrame(() => e.target.select());
+      }}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = parseFloat(e.target.value);
+        if (Number.isFinite(n)) onChange(n);
+      }}
+      onBlur={(e) => {
+        const n = parseFloat(e.target.value);
+        onChange(Number.isFinite(n) ? Math.max(min, n) : min);
+        setDraft(null);
+      }}
       className="input"
     />
   );
 }
+
 function Stat({ label, value, accent }: { label: string; value: string | number; accent?: "bull" | "bear" }) {
   return (
     <div className="rounded-md border border-border bg-surface-2 p-3">
