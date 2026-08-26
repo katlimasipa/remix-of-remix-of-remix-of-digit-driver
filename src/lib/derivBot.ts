@@ -409,16 +409,20 @@ export class DerivBot {
 
     if (this.cooldown > 0) this.cooldown -= 1;
 
-    // Resolve any "virtual" trade waiting on this tick: once the skipped
-    // occurrence has played out (one tick later), the strategy becomes armed
-    // and the next trigger is taken as a real trade.
+    // Resolve a skipped (virtual) trade on the following tick. A DIGITDIFF
+    // cycle has failed only when the next digit repeats its barrier. For
+    // example, a 4-repetition trigger must first become 5 repetitions, and an
+    // XXXYYY trigger must first become XXXYYYY. A virtual win stays waiting.
     let armed = this.state.patternArmed;
     let armedChanged = false;
     SUB_MODES.forEach((m) => {
-      if (this.patternWatch[m] === null) return;
+      const watchedBarrier = this.patternWatch[m];
+      if (watchedBarrier === null) return;
       this.patternWatch[m] = null;
-      armed = { ...armed, [m]: true };
-      armedChanged = true;
+      if (digit === watchedBarrier) {
+        armed = { ...armed, [m]: true };
+        armedChanged = true;
+      }
     });
     if (armedChanged) this.patch({ patternArmed: armed });
 
@@ -442,12 +446,12 @@ export class DerivBot {
     // Raw trigger (barrier digit) per strategy, before wait-for-fail gating.
     const rawBarrier = (m: SubMode): number | null => {
       if (m === "xxxyyy") return xxxyyyBarrier;
-      if (m === "any") return streak >= this.cfg.anyRepetitions ? digit : null;
+       if (m === "any") return streak === this.cfg.anyRepetitions ? digit : null;
       if (m === "odd")
-        return digit % 2 !== 0 && streak >= this.cfg.oddRepetitions ? digit : null;
+         return digit % 2 !== 0 && streak === this.cfg.oddRepetitions ? digit : null;
       if (m === "even")
-        return digit % 2 === 0 && streak >= this.cfg.evenRepetitions ? digit : null;
-      return digit === this.cfg.targetDigit && streak >= this.cfg.repetitionCount
+         return digit % 2 === 0 && streak === this.cfg.evenRepetitions ? digit : null;
+       return digit === this.cfg.targetDigit && streak === this.cfg.repetitionCount
         ? this.cfg.targetDigit
         : null;
     };
