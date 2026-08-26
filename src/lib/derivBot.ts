@@ -32,8 +32,6 @@ export type BotConfig = {
   waitFailModes?: Exclude<TriggerMode, "th_dpst">[];
 };
 
-
-
 export type Trade = {
   id: string;
   time: number;
@@ -66,9 +64,7 @@ export type BotState = {
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
   /** Whether a prior occurrence has already failed (armed to trade next time), per strategy. */
   patternArmed: Record<Exclude<TriggerMode, "th_dpst">, boolean>;
-
 };
-
 
 export type BotEvent =
   | { type: "trade_settled"; trade: Trade; pnl: number }
@@ -98,7 +94,6 @@ function asFiniteNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-
 export class DerivBot {
   private ws: WebSocket | null = null;
   private cfg: BotConfig;
@@ -124,7 +119,6 @@ export class DerivBot {
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
     patternArmed: emptyArmed(),
-
   };
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
@@ -138,8 +132,6 @@ export class DerivBot {
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
   private patternWatch: Record<SubMode, number | null> = emptyWatch();
-
-
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
   private cycleModes(): Exclude<TriggerMode, "th_dpst">[] {
@@ -274,7 +266,11 @@ export class DerivBot {
     if (wsUrl) this.cfg = { ...this.cfg, wsUrl };
     this.intentionalDisconnect = false;
 
-    if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+    if (
+      !this.ws ||
+      this.ws.readyState === WebSocket.CLOSED ||
+      this.ws.readyState === WebSocket.CLOSING
+    ) {
       this.forceReconnect();
       return;
     }
@@ -330,7 +326,8 @@ export class DerivBot {
   private scheduleReconnect(delay?: number) {
     if (this.intentionalDisconnect) return;
     if (this.reconnectTimer) return;
-    const reconnectDelay = delay ?? Math.min(30_000, 1000 * 2 ** Math.min(this.reconnectAttempts, 5));
+    const reconnectDelay =
+      delay ?? Math.min(30_000, 1000 * 2 ** Math.min(this.reconnectAttempts, 5));
     this.reconnectAttempts += 1;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
@@ -426,7 +423,6 @@ export class DerivBot {
     });
     if (armedChanged) this.patch({ patternArmed: armed });
 
-
     // Pattern buffer for xxxyyy (three of one digit, then three of another)
     let xxxyyyBarrier: number | null = null;
 
@@ -446,18 +442,18 @@ export class DerivBot {
     // Raw trigger (barrier digit) per strategy, before wait-for-fail gating.
     const rawBarrier = (m: SubMode): number | null => {
       if (m === "xxxyyy") return xxxyyyBarrier;
-       if (m === "any") return streak === this.cfg.anyRepetitions ? digit : null;
-      if (m === "odd")
-         return digit % 2 !== 0 && streak === this.cfg.oddRepetitions ? digit : null;
+      if (m === "any") return streak === this.cfg.anyRepetitions ? digit : null;
+      if (m === "odd") return digit % 2 !== 0 && streak === this.cfg.oddRepetitions ? digit : null;
       if (m === "even")
-         return digit % 2 === 0 && streak === this.cfg.evenRepetitions ? digit : null;
-       return digit === this.cfg.targetDigit && streak === this.cfg.repetitionCount
+        return digit % 2 === 0 && streak === this.cfg.evenRepetitions ? digit : null;
+      return digit === this.cfg.targetDigit && streak === this.cfg.repetitionCount
         ? this.cfg.targetDigit
         : null;
     };
 
     if (this.state.running && !this.state.pendingTrade && this.cooldown === 0) {
-      const availableModes = this.cfg.triggerMode === "th_dpst" ? this.state.remainingCycle : [this.cfg.triggerMode];
+      const availableModes =
+        this.cfg.triggerMode === "th_dpst" ? this.state.remainingCycle : [this.cfg.triggerMode];
       const waitModes = this.cfg.waitFailModes ?? [];
 
       let triggeredMode: SubMode | null = null;
@@ -482,7 +478,6 @@ export class DerivBot {
     }
   }
 
-
   private async placeTrade(barrierDigit: number, mode: Exclude<TriggerMode, "th_dpst">) {
     if (this.cfg.triggerMode === "th_dpst") {
       const allowed = this.cycleModes();
@@ -499,7 +494,6 @@ export class DerivBot {
 
     this.streakDigit = null;
     this.cooldown = 2;
-
 
     try {
       const proposal = await this.send({
@@ -589,17 +583,12 @@ export class DerivBot {
   }
 
   private handleContractUpdate(c: any) {
-    const settled =
-      c.is_sold || c.is_expired || c.status === "won" || c.status === "lost";
+    const settled = c.is_sold || c.is_expired || c.status === "won" || c.status === "lost";
     if (!settled) return;
 
     const contractId = String(c.contract_id);
     const existing = this.state.trades.find((t) => t.id === contractId);
-    if (
-      !existing ||
-      existing.status !== "open" ||
-      this.settledContracts.has(contractId)
-    ) {
+    if (!existing || existing.status !== "open" || this.settledContracts.has(contractId)) {
       this.watchedContracts.delete(contractId);
       if (existing?.status === "open") this.patch({ pendingTrade: false });
       return;
@@ -612,9 +601,7 @@ export class DerivBot {
     );
     const status: Trade["status"] = profit >= 0 ? "won" : "lost";
     const trades = this.state.trades.map((t) =>
-      t.id === contractId
-        ? { ...t, status, profit, payout: asFiniteNumber(c.payout) }
-        : t,
+      t.id === contractId ? { ...t, status, profit, payout: asFiniteNumber(c.payout) } : t,
     );
     const pnl = this.state.pnl + profit;
     const wins = this.state.wins + (status === "won" ? 1 : 0);
@@ -640,7 +627,6 @@ export class DerivBot {
     }
 
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
-
 
     if (pnl <= -Math.abs(this.cfg.stopLoss)) {
       this.stop("stop_loss");
@@ -683,7 +669,6 @@ export class DerivBot {
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
       patternArmed: emptyArmed(),
-
     });
   }
 
