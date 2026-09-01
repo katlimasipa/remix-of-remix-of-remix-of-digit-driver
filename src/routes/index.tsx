@@ -15,8 +15,8 @@ function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center">
             <Link to="/">
-              <img src="/logo-light.png" alt="ThDpstSmrtTrdr Logo" className="h-8 w-auto dark:hidden" />
-              <img src="/logo-dark.png" alt="ThDpstSmrtTrdr Logo" className="h-8 w-auto hidden dark:block" />
+              <img src="/logo-light.png" alt="ThDpstSmrtTrdr Logo" className="h-12 sm:h-14 w-auto dark:hidden" />
+              <img src="/logo-dark.png" alt="ThDpstSmrtTrdr Logo" className="h-12 sm:h-14 w-auto hidden dark:block" />
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -186,3 +186,4 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode, titl
     </div>
   );
 }
+
