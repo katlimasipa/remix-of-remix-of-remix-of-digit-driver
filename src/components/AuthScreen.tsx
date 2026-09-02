@@ -4,8 +4,7 @@ import { useAppAuth } from "@/hooks/useAppAuth";
 import { Footer } from "./Footer";
 import { PwaInstallBanner, PwaInstallButton } from "./PwaInstall";
 
-export function AuthScreen() {
-  const { login, signUp, authState, error } = useDerivAuth();
+export function AuthScreen({ login, signUp, authState, error }: { login: () => void, signUp: () => void, authState: string, error: string | null }) {
   const app = useAppAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -128,4 +127,5 @@ export function AuthScreen() {
     </div>
   );
 }
+
 
