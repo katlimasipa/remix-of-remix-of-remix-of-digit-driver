@@ -23,7 +23,7 @@ function getAuthConfig(): AuthConfig {
     clientId: import.meta.env.VITE_DERIV_APP_ID || '33CVw800TTYMR0RcYLNfx',
     redirectUri:
       import.meta.env.VITE_DERIV_REDIRECT_URI ||
-      'https://thdpstdgtdffrs.vercel.app/dashboard',
+      'https://thdpstdgtdffrs.vercel.app/',
   };
 
   const scopesEnv = import.meta.env.VITE_DERIV_OAUTH_SCOPES ?? '';
@@ -277,5 +277,6 @@ export function useDerivAuth(): UseAuthReturn {
     error,
   };
 }
+
 
 
