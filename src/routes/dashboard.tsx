@@ -601,16 +601,18 @@ function Dashboard() {
                             </svg>
                           )}
                         </span>
-                        <span className="flex-1">{TH_DPST_LABELS[m]}</span>
-                        {on && (
-                          <span
-                            className={`font-mono text-[9px] uppercase tracking-wider ${
-                              armed ? "text-warn" : "text-muted-foreground"
-                            }`}
-                          >
-                            {armed ? "Armed" : "Waiting"}
-                          </span>
-                        )}
+                        <div className="flex flex-col flex-1 min-w-0">
+                            <span className="whitespace-nowrap">{TH_DPST_LABELS[m]}</span>
+                            {on && (
+                              <span
+                                className={`font-mono text-[9px] uppercase tracking-wider ${
+                                  armed ? "text-warn" : "text-muted-foreground"
+                                }`}
+                              >
+                                {armed ? "Armed" : "Waiting"}
+                              </span>
+                            )}
+                          </div>
                       </button>
                     );
                   })}
@@ -680,9 +682,7 @@ function Dashboard() {
                             <path d="M1 4.2 3.6 6.8 9 1.4" />
                           </svg>
                         )}
-                      </span>
-                      {TH_DPST_LABELS[m]}
-                    </button>
+                      </span><span className="whitespace-nowrap">{TH_DPST_LABELS[m]}</span></button>
                   );
                 })}
               </div>
@@ -1263,5 +1263,7 @@ function computeStreakHighlights(
   }
   return out;
 }
+
+
 
 
