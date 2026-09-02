@@ -95,7 +95,7 @@ export function AuthScreen({ login, signUp, authState, error }: { login: () => v
                   disabled={authState === "authenticating"}
                   className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
                 >
-                  {authState === "authenticating" ? "Authenticating..." : "Log In with Deriv"}
+                  {authState === "authenticating" ? "Authenticating..." : authState === "authenticated" ? "No Trading Accounts Found" : "Log In with Deriv"}
                 </button>
 
                 <button
@@ -127,5 +127,6 @@ export function AuthScreen({ login, signUp, authState, error }: { login: () => v
     </div>
   );
 }
+
 
 
