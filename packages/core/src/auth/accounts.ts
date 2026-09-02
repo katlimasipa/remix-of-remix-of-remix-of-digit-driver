@@ -1,4 +1,4 @@
-import type { AuthInfo, DerivAccount, OTPResponse } from '../types';
+﻿import type { AuthInfo, DerivAccount, OTPResponse } from '../types';
 import {
   storeDerivAccounts,
   setActiveLoginId,
@@ -22,6 +22,9 @@ export async function fetchAccounts(
   });
 
   if (!response.ok) {
+    if (response.status >= 500) {
+      throw new Error(`Deriv servers are temporarily unavailable (${response.status}). Please try again later.`);
+    }
     throw new Error(`Failed to fetch accounts (${response.status})`);
   }
 
@@ -56,6 +59,9 @@ export async function getWebSocketOTP(
   });
 
   if (!response.ok) {
+    if (response.status >= 500) {
+      throw new Error(`Deriv servers are temporarily unavailable (${response.status}). Please try again later.`);
+    }
     throw new Error(`Failed to get WebSocket OTP (${response.status})`);
   }
 
@@ -70,3 +76,4 @@ export async function getWebSocketOTP(
 export function logout(): void {
   clearAllAuthData();
 }
+
