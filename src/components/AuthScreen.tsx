@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useDerivAuth } from "@/hooks/useDerivAuth";
+﻿import { useState } from "react";
+
 import { useAppAuth } from "@/hooks/useAppAuth";
 import { Footer } from "./Footer";
 import { PwaInstallBanner, PwaInstallButton } from "./PwaInstall";
@@ -32,7 +32,7 @@ export function AuthScreen() {
             <p className="mt-1 text-xs text-muted-foreground">
               {app.user
                 ? "Now connect your Deriv account to trade"
-                : "Create a profile — it syncs alerts across your devices"}
+                : "Create a profile â€” it syncs alerts across your devices"}
             </p>
           </div>
 
@@ -128,3 +128,4 @@ export function AuthScreen() {
     </div>
   );
 }
+

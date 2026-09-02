@@ -75,7 +75,7 @@ function useAnimatedNumber(value: number, duration = 400) {
 }
 
 function Dashboard() {
-  const { authState, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
+  const { authState, error, login, signUp, accounts, activeAccount, wsUrl, logout, switchAccount, refreshWebSocketUrl } = useDerivAuth();
   const appAuth = useAppAuth();
   const { state, cfg, setCfg, start, stop, reset, connect, recoverConnection, disconnect, onEvent } = useDerivBot();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -242,7 +242,7 @@ function Dashboard() {
   }
 
   if (!appAuth.user || authState !== 'authenticated' || !activeAccount) {
-    return <AuthScreen />;
+    return <AuthScreen login={login} signUp={signUp} authState={authState} error={error} />;
   }
 
   const statusColor = !s?.connected
@@ -1263,3 +1263,5 @@ function computeStreakHighlights(
   }
   return out;
 }
+
+
