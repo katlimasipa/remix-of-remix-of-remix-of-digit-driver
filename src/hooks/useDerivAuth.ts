@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   initiateLogin,
   initiateSignUp,
@@ -23,7 +23,7 @@ function getAuthConfig(): AuthConfig {
     clientId: import.meta.env.VITE_DERIV_APP_ID || '33CVw800TTYMR0RcYLNfx',
     redirectUri:
       import.meta.env.VITE_DERIV_REDIRECT_URI ||
-      'https://thdpstdgtdffrs.vercel.app/',
+      'https://thdpstdgtdffrs.vercel.app/dashboard',
   };
 
   const scopesEnv = import.meta.env.VITE_DERIV_OAUTH_SCOPES ?? '';
@@ -277,4 +277,5 @@ export function useDerivAuth(): UseAuthReturn {
     error,
   };
 }
+
 
