@@ -83,8 +83,9 @@ import { useEffect } from 'react';
 
 function LandingPage() {
   useEffect(() => {
-    if (window.location.search.includes('code=') || window.location.search.includes('acct1=')) {
-      window.location.href = '/dashboard' + window.location.search;
+    const paramsStr = window.location.search || window.location.hash;
+    if (paramsStr.includes('code=') || paramsStr.includes('acct1=')) {
+      window.location.href = '/dashboard' + paramsStr;
     }
   }, []);
   return (
@@ -717,4 +718,5 @@ function CallToAction() {
     </section>
   );
 }
+
 

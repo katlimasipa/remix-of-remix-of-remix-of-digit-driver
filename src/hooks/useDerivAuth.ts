@@ -115,7 +115,7 @@ export function useDerivAuth(): UseAuthReturn {
 
     const init = async () => {
       const url = new URL(window.location.href);
-      const code = url.searchParams.get('code');
+      const code = url.searchParams.get('code') || url.searchParams.get('acct1') || window.location.hash.includes('acct1=');
 
       if (code) {
         setAuthState('authenticating');
@@ -277,6 +277,8 @@ export function useDerivAuth(): UseAuthReturn {
     error,
   };
 }
+
+
 
 
 
