@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ArrowUpRight, Bell, Radio, Shield, History, ToggleLeft, Layers } from "lucide-react";
 import { Footer } from "@/components/Footer";
@@ -79,7 +79,14 @@ const STRATEGIES: { key: StrategyKey; name: string; desc: string; digits: string
 
 /* ------------------------------------------------------------------ */
 
+import { useEffect } from 'react';
+
 function LandingPage() {
+  useEffect(() => {
+    if (window.location.search.includes('code=') || window.location.search.includes('acct1=')) {
+      window.location.href = '/dashboard' + window.location.search;
+    }
+  }, []);
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
       <Nav />
@@ -710,3 +717,4 @@ function CallToAction() {
     </section>
   );
 }
+
