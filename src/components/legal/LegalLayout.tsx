@@ -19,7 +19,7 @@ export function LegalLayout({
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border bg-surface/70 px-4 py-3 backdrop-blur-xl pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link to="/landing" className="font-display text-sm font-semibold tracking-tight">
+          <Link to="/" className="font-display text-sm font-semibold tracking-tight">
             ThDpstSmrtTrdr
           </Link>
           <nav className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
