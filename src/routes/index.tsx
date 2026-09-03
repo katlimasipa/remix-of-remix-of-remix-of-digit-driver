@@ -185,7 +185,7 @@ function Hero() {
 
         {/* Product mockup */}
         <Reveal variant="scale" delay={320} className="relative mx-auto mt-16 max-w-4xl">
-          <FloatingCard className="parallax-down float-slow -left-2 top-6 hidden sm:block lg:-left-16" tilt="-6deg">
+          <FloatingCard className="parallax-down float-slow -left-2 top-28 hidden sm:block lg:-left-20" tilt="-6deg">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Streak detected</p>
             <div className="mt-2 flex items-end gap-1.5">
               {[7, 7, 7, 7].map((d, i) => (
