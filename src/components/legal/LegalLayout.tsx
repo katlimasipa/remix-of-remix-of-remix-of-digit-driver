@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Footer } from "@/components/Footer";
 
 /** Update this to your real contact address — it is shown on all legal pages. */
-export const CONTACT_EMAIL = "support@architeq.co.za";
+export const CONTACT_EMAIL = "support@thdpstsmrttrdr.co.za";
 export const LAST_UPDATED = "1 September 2026";
 
 export function LegalLayout({
