@@ -627,6 +627,102 @@ function Strategies() {
 
 /* ------------------------------- Statement ----------------------------- */
 
+/* --------------------------- Funding on Deriv --------------------------- */
+
+const DERIV_URL = "https://deriv.com";
+
+const FUNDING_STEPS = [
+  [
+    "Open or sign in to your Deriv account",
+    "Deriv is the broker. If you do not have an account, sign up on deriv.com and complete their verification. Every Deriv account comes with a free demo account you can use with this app straight away.",
+  ],
+  [
+    "Deposit on Deriv, not in this app",
+    "To trade with real money, you add funds to your Deriv real account using the payment methods Deriv offers in your country. This app never asks for card details and never holds a balance for you.",
+  ],
+  [
+    "Connect and trade",
+    "Authorise this app with your Deriv account or paste an API token. When the bot places a Digits Differ contract, the stake is taken from your Deriv balance and any payout is credited back to it.",
+  ],
+  [
+    "Withdraw on Deriv",
+    "Profits, and whatever is left of your deposit, stay in your Deriv account. You withdraw from Deriv's cashier, subject to Deriv's own verification and processing rules. This app cannot move money in or out.",
+  ],
+] as const;
+
+function Funding() {
+  return (
+    <section id="funding" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-24 sm:py-32">
+      <div className="grid gap-14 lg:grid-cols-[1fr_1.3fr]">
+        <Reveal>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-primary">Deposits and withdrawals</p>
+          <h2 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">
+            Your money lives on Deriv. Always.
+          </h2>
+          <p className="mt-5 text-sm leading-7 text-muted-foreground sm:text-base">
+            ThDpstSmrtTrdr only sends trade instructions to Deriv through your own account. It has no
+            wallet, takes no deposits and cannot withdraw. For a real account, every deposit and every
+            withdrawal happens on Deriv, in your Deriv cashier, under Deriv's terms.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <a href={DERIV_URL} target="_blank" rel="noopener noreferrer">
+              <Button className="h-11 rounded-full px-5">
+                Sign up or sign in on Deriv
+                <ArrowUpRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </a>
+            <Link to="/dashboard">
+              <Button variant="outline" className="h-11 rounded-full px-5">
+                Connect an existing account
+              </Button>
+            </Link>
+          </div>
+          <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Deriv is an independent broker. We are not affiliated with or endorsed by Deriv.
+          </p>
+        </Reveal>
+
+        <ol className="grid gap-3">
+          {FUNDING_STEPS.map(([title, body], i) => (
+            <Reveal as="li" key={title} delay={i * 80}>
+              <div className="lift flex gap-5 rounded-2xl border border-border bg-card p-5 sm:p-6">
+                <span className="font-mono text-sm text-primary">0{i + 1}</span>
+                <div>
+                  <h3 className="font-display text-base font-semibold">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{body}</p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </ol>
+      </div>
+
+      <Reveal delay={120} className="mt-10 rounded-2xl border border-border bg-surface/60 p-5 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Demo account</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Uses Deriv's virtual funds. Nothing to deposit, nothing to withdraw. Start here.
+            </p>
+          </div>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Real account</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Real money, deposited on Deriv. Every stake is a real loss if the contract loses.
+            </p>
+          </div>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Fees and limits</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Deposit methods, fees, minimums and withdrawal times are set by Deriv, not by this app.
+            </p>
+          </div>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
 function Statement() {
   return (
     <section className="border-y border-border bg-surface/40 py-24 sm:py-32">
