@@ -8,7 +8,7 @@ export function Footer() {
         future results. This app is software only and is not financial advice. 18+.
       </p>
       <nav className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[10px] uppercase tracking-widest">
-        <Link to="/landing" className="transition-colors hover:text-primary">
+        <Link to="/" className="transition-colors hover:text-primary">
           About
         </Link>
         <Link to="/risk" className="transition-colors hover:text-primary">

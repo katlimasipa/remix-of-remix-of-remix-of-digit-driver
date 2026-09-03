@@ -185,7 +185,7 @@ function Hero() {
 
         {/* Product mockup */}
         <Reveal variant="scale" delay={320} className="relative mx-auto mt-16 max-w-4xl">
-          <FloatingCard className="parallax-down float-slow -left-2 top-6 hidden sm:block lg:-left-16" tilt="-6deg">
+          <FloatingCard className="parallax-down float-slow -left-2 top-28 hidden sm:block lg:-left-20" tilt="-6deg">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Streak detected</p>
             <div className="mt-2 flex items-end gap-1.5">
               {[7, 7, 7, 7].map((d, i) => (
@@ -443,10 +443,10 @@ function Features() {
               ["XXXYYY = Z", "Wait fail", "-2.00", "bear"],
               ["TH DPST", "3 modes", "+1.15", "bull"],
             ].map(([a, b, c, tone]) => (
-              <div key={a} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                <span>{a}</span>
-                <span className="text-muted-foreground">{b}</span>
-                <span className={tone === "bull" ? "text-bull" : "text-bear"}>{c}</span>
+              <div key={a} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                <span className="truncate">{a}</span>
+                <span className="ml-auto whitespace-nowrap text-muted-foreground">{b}</span>
+                <span className={cn("whitespace-nowrap", tone === "bull" ? "text-bull" : "text-bear")}>{c}</span>
               </div>
             ))}
           </div>
