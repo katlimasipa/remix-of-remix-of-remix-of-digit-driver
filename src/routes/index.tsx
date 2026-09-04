@@ -97,6 +97,7 @@ function LandingPage() {
         <Features />
         <HowItWorks />
         <Strategies />
+        <Funding />
         <Statement />
         <CallToAction />
       </main>
