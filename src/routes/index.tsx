@@ -97,6 +97,7 @@ function LandingPage() {
         <Features />
         <HowItWorks />
         <Strategies />
+        <Funding />
         <Statement />
         <CallToAction />
       </main>
@@ -119,6 +120,7 @@ function Nav() {
           <a href="#features" className="transition-colors hover:text-foreground">Features</a>
           <a href="#how" className="transition-colors hover:text-foreground">How it works</a>
           <a href="#strategies" className="transition-colors hover:text-foreground">Strategies</a>
+          <a href="#funding" className="transition-colors hover:text-foreground">Funding</a>
           <Link to="/risk" className="transition-colors hover:text-foreground">Risk</Link>
         </div>
         <div className="flex items-center gap-2">
