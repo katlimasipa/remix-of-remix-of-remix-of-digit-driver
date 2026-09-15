@@ -465,10 +465,19 @@ export class DerivBot {
       for (const m of availableModes) {
         const b = rawBarrier(m);
         if (b === null) continue;
-        if (waitModes.includes(m) && !this.state.patternArmed[m]) {
-          // Observe this occurrence as a virtual trade; trade only after it fails.
-          this.patternWatch[m] = b;
-          continue;
+        if (waitModes.includes(m)) {
+          const armedFor = this.armedDigit[m];
+          if (!this.state.patternArmed[m] || armedFor === null) {
+            // Observe this occurrence as a virtual trade; trade only after it fails.
+            this.patternWatch[m] = b;
+            continue;
+          }
+          if (armedFor !== b) {
+            // A different digit triggered. Keep waiting for the digit that failed,
+            // and start watching this one too in case it fails next.
+            this.patternWatch[m] = b;
+            continue;
+          }
         }
         triggeredMode = m;
         barrier = b;
