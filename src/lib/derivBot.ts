@@ -502,6 +502,7 @@ export class DerivBot {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
     this.patternWatch[mode] = null;
+    this.armedDigit[mode] = null;
     this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
 
     this.streakDigit = null;
@@ -630,6 +631,8 @@ export class DerivBot {
     const tradeMode = settledTrade.mode as SubMode | undefined;
     if (tradeMode && (this.cfg.waitFailModes ?? []).includes(tradeMode)) {
       this.patternWatch[tradeMode] = null;
+      // A loss keeps the same barrier digit armed; a win resets the wait entirely.
+      this.armedDigit[tradeMode] = status === "lost" ? settledTrade.digit : null;
       this.patch({
         patternArmed: {
           ...this.state.patternArmed,
@@ -669,6 +672,7 @@ export class DerivBot {
     this.watchedContracts.clear();
     this.settledContracts.clear();
     this.patternWatch = emptyWatch();
+    this.armedDigit = emptyWatch();
 
     this.patch({
       pnl: 0,
