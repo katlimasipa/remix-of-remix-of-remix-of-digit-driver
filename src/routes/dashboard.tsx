@@ -22,7 +22,7 @@ import { useTheme } from "@/hooks/useTheme";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "ThDpstSmrtTrdr — Digits Differ Bot" },
+      { title: "ThDpstSmrtTrdr - Digits Differ Bot" },
       {
         name: "description",
         content: "Automated Digits Differ trading on Volatility 100 via Deriv API.",
