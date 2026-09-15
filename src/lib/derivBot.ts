@@ -132,6 +132,8 @@ export class DerivBot {
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
   private patternWatch: Record<SubMode, number | null> = emptyWatch();
+  /** The exact barrier digit whose cycle failed, per strategy. Only that digit may be traded. */
+  private armedDigit: Record<SubMode, number | null> = emptyWatch();
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
   private cycleModes(): Exclude<TriggerMode, "th_dpst">[] {
@@ -418,6 +420,7 @@ export class DerivBot {
       this.patternWatch[m] = null;
       if (digit === watchedBarrier) {
         armed = { ...armed, [m]: true };
+        this.armedDigit[m] = watchedBarrier;
         armedChanged = true;
       }
     });
@@ -462,10 +465,19 @@ export class DerivBot {
       for (const m of availableModes) {
         const b = rawBarrier(m);
         if (b === null) continue;
-        if (waitModes.includes(m) && !this.state.patternArmed[m]) {
-          // Observe this occurrence as a virtual trade; trade only after it fails.
-          this.patternWatch[m] = b;
-          continue;
+        if (waitModes.includes(m)) {
+          const armedFor = this.armedDigit[m];
+          if (!this.state.patternArmed[m] || armedFor === null) {
+            // Observe this occurrence as a virtual trade; trade only after it fails.
+            this.patternWatch[m] = b;
+            continue;
+          }
+          if (armedFor !== b) {
+            // A different digit triggered. Keep waiting for the digit that failed,
+            // and start watching this one too in case it fails next.
+            this.patternWatch[m] = b;
+            continue;
+          }
         }
         triggeredMode = m;
         barrier = b;
@@ -490,6 +502,7 @@ export class DerivBot {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
     }
     this.patternWatch[mode] = null;
+    this.armedDigit[mode] = null;
     this.patch({ patternArmed: { ...this.state.patternArmed, [mode]: false } });
 
     this.streakDigit = null;
@@ -618,6 +631,8 @@ export class DerivBot {
     const tradeMode = settledTrade.mode as SubMode | undefined;
     if (tradeMode && (this.cfg.waitFailModes ?? []).includes(tradeMode)) {
       this.patternWatch[tradeMode] = null;
+      // A loss keeps the same barrier digit armed; a win resets the wait entirely.
+      this.armedDigit[tradeMode] = status === "lost" ? settledTrade.digit : null;
       this.patch({
         patternArmed: {
           ...this.state.patternArmed,
@@ -657,6 +672,7 @@ export class DerivBot {
     this.watchedContracts.clear();
     this.settledContracts.clear();
     this.patternWatch = emptyWatch();
+    this.armedDigit = emptyWatch();
 
     this.patch({
       pnl: 0,
