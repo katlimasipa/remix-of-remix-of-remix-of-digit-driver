@@ -132,6 +132,8 @@ export class DerivBot {
   private intentionalDisconnect = true;
   private reconnectAttempts = 0;
   private patternWatch: Record<SubMode, number | null> = emptyWatch();
+  /** The exact barrier digit whose cycle failed, per strategy. Only that digit may be traded. */
+  private armedDigit: Record<SubMode, number | null> = emptyWatch();
 
   /** Sub-strategies selected for the TH DPST cycle (defaults to all six). */
   private cycleModes(): Exclude<TriggerMode, "th_dpst">[] {
@@ -418,6 +420,7 @@ export class DerivBot {
       this.patternWatch[m] = null;
       if (digit === watchedBarrier) {
         armed = { ...armed, [m]: true };
+        this.armedDigit[m] = watchedBarrier;
         armedChanged = true;
       }
     });
