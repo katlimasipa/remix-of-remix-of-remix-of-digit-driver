@@ -509,20 +509,20 @@ export class DerivBot {
     this.cooldown = 2;
 
     try {
-      const proposal = await this.send({
-        proposal: 1,
-        amount: this.cfg.stake,
-        basis: "stake",
-        contract_type: "DIGITDIFF",
-        currency: this.state.currency || "USD",
-        duration: 1,
-        duration_unit: "t",
-        underlying_symbol: SYMBOL,
-        barrier: String(barrierDigit),
-      });
-      if (proposal.error) throw new Error(proposal.error.message);
-
-      const buy = await this.send({ buy: proposal.proposal.id, price: this.cfg.stake });
+      const buy = await this.send({
+          buy: 1,
+          price: this.cfg.stake,
+          parameters: {
+            amount: this.cfg.stake,
+            basis: "stake",
+            contract_type: "DIGITDIFF",
+            currency: this.state.currency || "USD",
+            duration: 1,
+            duration_unit: "t",
+            symbol: SYMBOL,
+            barrier: String(barrierDigit),
+          }
+        });
       if (buy.error) throw new Error(buy.error.message);
 
       const contractId = buy.buy.contract_id;
@@ -712,3 +712,4 @@ export class DerivBot {
     });
   }
 }
+
