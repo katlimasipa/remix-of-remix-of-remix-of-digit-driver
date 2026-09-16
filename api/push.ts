@@ -95,6 +95,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = await requireUserId(req);
     if (!userId) return res.status(401).json({ error: "Authentication required" });
 
+    if (rateLimited(`user:${userId}`)) {
+      res.setHeader("Retry-After", "60");
+      return res.status(429).json({ error: "Too many requests" });
+    }
+
+
     if (action === "subscribe") {
       const { endpoint, p256dh, auth, userAgent } = req.body ?? {};
       if (!endpoint || !p256dh || !auth) {
