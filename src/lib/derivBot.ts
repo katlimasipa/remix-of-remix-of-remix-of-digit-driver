@@ -519,7 +519,7 @@ export class DerivBot {
             currency: this.state.currency || "USD",
             duration: 1,
             duration_unit: "t",
-            symbol: SYMBOL,
+            underlying_symbol: SYMBOL,
             barrier: String(barrierDigit),
           }
         });
@@ -712,4 +712,5 @@ export class DerivBot {
     });
   }
 }
+
 
