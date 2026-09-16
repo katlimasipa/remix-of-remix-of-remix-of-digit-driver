@@ -1,4 +1,4 @@
-﻿import type { AuthInfo, DerivAccount, OTPResponse } from '../types';
+import type { AuthInfo, DerivAccount, OTPResponse } from '../types';
 import {
   storeDerivAccounts,
   setActiveLoginId,
@@ -14,12 +14,20 @@ export async function fetchAccounts(
   authInfo: AuthInfo,
   clientId: string
 ): Promise<DerivAccount[]> {
-  const response = await fetch(`${getApiBaseUrl()}/accounts`, {
+  let response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}/accounts`, {
     headers: {
       Authorization: `Bearer ${authInfo.access_token}`,
       'Deriv-App-ID': clientId,
     },
   });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "Failed to fetch") {
+      throw new Error("Deriv servers are temporarily unavailable or blocked by CORS. Please try again later.");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     if (response.status >= 500) {
@@ -50,13 +58,21 @@ export async function getWebSocketOTP(
   authInfo: AuthInfo,
   clientId: string
 ): Promise<string> {
-  const response = await fetch(`${getApiBaseUrl()}/accounts/${accountId}/otp`, {
+  let response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}/accounts/${accountId}/otp`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${authInfo.access_token}`,
       'Deriv-App-ID': clientId,
     },
   });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "Failed to fetch") {
+      throw new Error("Deriv servers are temporarily unavailable or blocked by CORS. Please try again later.");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     if (response.status >= 500) {
@@ -76,4 +92,5 @@ export async function getWebSocketOTP(
 export function logout(): void {
   clearAllAuthData();
 }
+
 

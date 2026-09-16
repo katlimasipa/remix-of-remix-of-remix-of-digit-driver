@@ -1,4 +1,4 @@
-﻿import type { AuthConfig, AuthInfo, CallbackParams, TokenExchangeParams } from '../types';
+import type { AuthConfig, AuthInfo, CallbackParams, TokenExchangeParams } from '../types';
 import { generateRandomBase64url, sha256Base64url } from './crypto';
 import {
   storeCSRFToken,
@@ -37,7 +37,7 @@ async function buildPkceParams(config: AuthConfig): Promise<URLSearchParams> {
 
 /**
  * Build the OAuth 2.0 login authorization URL with PKCE parameters.
- * Login uses standard PKCE params only â€” no affiliate/UTM params.
+ * Login uses standard PKCE params only — no affiliate/UTM params.
  * Stores CSRF token and code verifier in sessionStorage.
  */
 export async function buildAuthorizationUrl(config: AuthConfig): Promise<string> {
@@ -114,7 +114,7 @@ export function validateCallback(params: CallbackParams, redirectUri: string): s
   if (!params.state) {
     clearAllAuthData();
     cleanupUrl(redirectUri);
-    throw new OAuthError('Missing state parameter â€” possible CSRF attack');
+    throw new OAuthError('Missing state parameter — possible CSRF attack');
   }
 
   // Validate CSRF token matches
@@ -122,7 +122,7 @@ export function validateCallback(params: CallbackParams, redirectUri: string): s
   if (!storedToken || storedToken !== params.state) {
     clearAllAuthData();
     cleanupUrl(redirectUri);
-    throw new OAuthError('CSRF token mismatch â€” possible CSRF attack');
+    throw new OAuthError('CSRF token mismatch — possible CSRF attack');
   }
 
   // Clear CSRF token after successful validation
@@ -147,11 +147,19 @@ export async function exchangeCodeForTokens(params: TokenExchangeParams): Promis
     code_verifier: params.codeVerifier,
   });
 
-  const response = await fetch(`${getAuthBaseUrl()}/token`, {
+  let response;
+  try {
+    response = await fetch(`${getAuthBaseUrl()}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
   });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "Failed to fetch") {
+      throw new OAuthError("Deriv servers are temporarily unavailable or blocked by CORS. Please try again later.");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -190,11 +198,19 @@ export async function refreshAccessToken(
     client_id: clientId,
   });
 
-  const response = await fetch(`${getAuthBaseUrl()}/token`, {
+  let response;
+  try {
+    response = await fetch(`${getAuthBaseUrl()}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
   });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "Failed to fetch") {
+      throw new OAuthError("Deriv servers are temporarily unavailable or blocked by CORS. Please try again later.");
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     clearAllAuthData();
@@ -217,7 +233,7 @@ export async function refreshAccessToken(
 
 /**
  * Handle the complete OAuth callback flow:
- * validate â†’ exchange code â†’ return auth info.
+ * validate → exchange code → return auth info.
  */
 export async function handleOAuthCallback(
   callbackUrl: string,
@@ -264,4 +280,5 @@ export class OAuthError extends Error {
     this.name = 'OAuthError';
   }
 }
+
 
