@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { disablePushSubscription } from "@/lib/pushClient";
 
 export function useAppAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -59,6 +60,7 @@ export function useAppAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    await disablePushSubscription().catch(() => {});
     await supabase.auth.signOut();
     setSession(null);
   }, []);
@@ -67,3 +69,5 @@ export function useAppAuth() {
 
   return { session, user, userId: user?.id ?? null, loading, busy, error, signIn, signUp, signOut };
 }
+
+

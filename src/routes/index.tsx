@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ArrowUpRight, Bell, Radio, Shield, History, ToggleLeft, Layers } from "lucide-react";
 import { Footer } from "@/components/Footer";
@@ -84,9 +84,16 @@ import { useEffect } from 'react';
 function LandingPage() {
   useEffect(() => {
     const paramsStr = window.location.search || window.location.hash;
-    if (paramsStr.includes('code=') || paramsStr.includes('acct1=')) {
-      window.location.href = '/dashboard' + paramsStr;
-    }
+      if (paramsStr.includes("code=") || paramsStr.includes("acct1=")) {
+        window.location.href = "/dashboard" + paramsStr;
+        return;
+      }
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+      const hasDerivAuth = !!localStorage.getItem("auth_info");
+      const hasSupabaseAuth = Object.keys(localStorage).some(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
+      if (isStandalone || hasDerivAuth || hasSupabaseAuth) {
+        window.location.href = "/dashboard";
+      }
   }, []);
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
@@ -816,5 +823,6 @@ function CallToAction() {
     </section>
   );
 }
+
 
 
