@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": "/src",
+      "@deriv/core": "/packages/core/src/index.ts",
     },
   },
   server: {
