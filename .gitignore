@@ -31,3 +31,8 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Local env / deployment env dumps
+.env
+.env.*
+!.env.example
