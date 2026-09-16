@@ -268,7 +268,7 @@ function Dashboard() {
           </div>
           <h1 className="font-display text-sm sm:text-base font-semibold tracking-tight truncate">
             ThDpstSmrtTrdr
-            <span className="hidden sm:inline text-muted-foreground"> · Digits Differ</span>
+            <span className="hidden sm:inline text-muted-foreground"> - Digits Differ</span>
           </h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-xs shrink-0">
@@ -465,7 +465,7 @@ function Dashboard() {
               </Select>
             ) : (
               <div className={`rounded-md border border-border px-3 py-2 font-mono text-sm font-medium ${activeAccount.account_type === 'real' ? 'bg-bear/10 text-bear border-bear/20' : 'bg-surface'}`}>
-                {activeAccount.account_id} · {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
+                {activeAccount.account_id} - {activeAccount.account_type === 'demo' ? 'Demo' : 'Real'}
               </div>
             )}
             {activeAccount.account_type === 'real' && (
@@ -880,7 +880,7 @@ function Dashboard() {
                         </span>
                         <span>{t.price.toFixed(2)}</span>
                         <span className={t.digit === cfg.targetDigit ? "text-primary" : ""}>
-                          ·{t.digit}
+                          -{t.digit}
                         </span>
                       </li>
                     ))}

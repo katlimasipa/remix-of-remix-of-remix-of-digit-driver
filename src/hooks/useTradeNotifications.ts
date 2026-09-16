@@ -150,7 +150,7 @@ export function useTradeNotifications(
       const profit = typeof t.profit === "number" ? t.profit : 0;
       void notifyAllDevices({
         title: won ? "Trade won" : "Trade lost",
-        body: `${won ? "+" : ""}${profit.toFixed(2)} ${state.currency} · Digit ${t.digit} · Session P/L ${state.pnl >= 0 ? "+" : ""}${state.pnl.toFixed(2)}`,
+        body: `${won ? "+" : ""}${profit.toFixed(2)} ${state.currency} - Digit ${t.digit} - Session P/L ${state.pnl >= 0 ? "+" : ""}${state.pnl.toFixed(2)}`,
         tag: `trade-${t.id}`,
         vibrate: won ? [80, 40, 80] : [200],
       });
@@ -167,7 +167,7 @@ export function useTradeNotifications(
     lastRiskErrRef.current = err;
     void notifyAllDevices({
       title: isTP ? "Take Profit reached" : "Stop Loss hit",
-      body: `${err} · Session ended · ${state?.wins ?? 0}W / ${state?.losses ?? 0}L`,
+      body: `${err} - Session ended - ${state?.wins ?? 0}W / ${state?.losses ?? 0}L`,
       tag: `risk-${Date.now()}`,
       requireInteraction: true,
       vibrate: isTP ? [80, 40, 80, 40, 200] : [300, 100, 300],

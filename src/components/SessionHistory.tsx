@@ -154,13 +154,13 @@ export function SessionHistory({ currentAccountId }: { currentAccountId?: string
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                         <span>{fmtDate(s.endedAt)}</span>
-                        <span>·</span>
+                        <span>-</span>
                         <span>{fmtDuration(s.endedAt - s.startedAt)}</span>
-                        {isCurrent && <span className="text-primary">•</span>}
+                        {isCurrent && <span className="text-primary">-</span>}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5">
                         <span className="text-foreground">{s.totalTrades} trades</span>
-                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground">-</span>
                         <span className="text-bull">{s.wins}W</span>
                         <span className="text-bear">{s.losses}L</span>
                         <span className="text-muted-foreground">({rate}%)</span>
