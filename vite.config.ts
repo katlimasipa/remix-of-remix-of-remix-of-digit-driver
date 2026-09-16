@@ -4,8 +4,16 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [TanStackRouterVite(), react(), tailwindcss(), tsconfigPaths()],
+  // Production builds ship no debug output and no source maps.
+  esbuild:
+    mode === "production"
+      ? { drop: ["debugger"], pure: ["console.debug", "console.log"] }
+      : undefined,
+  build: {
+    sourcemap: false,
+  },
   resolve: {
     alias: {
       "@": "/src",
@@ -15,4 +23,4 @@ export default defineConfig({
     port: 8080,
     host: true,
   },
-});
+}));

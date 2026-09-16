@@ -32,8 +32,52 @@ async function requireUserId(req: VercelRequest): Promise<string | null> {
   return error ? null : (data.user?.id ?? null);
 }
 
+// Simple in-memory rate limiter (per warm serverless instance).
+const RATE_LIMIT = 90; // requests
+const RATE_WINDOW_MS = 60_000;
+const hits = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimited(key: string): boolean {
+  const now = Date.now();
+  const entry = hits.get(key);
+  if (!entry || now > entry.resetAt) {
+    hits.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    if (hits.size > 5000) {
+      for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k);
+    }
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_LIMIT;
+}
+
+function sameOrigin(req: VercelRequest): boolean {
+  const origin = req.headers.origin;
+  if (!origin) return true; // non-browser / same-origin form posts
+  const host = req.headers.host;
+  try {
+    return !!host && new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Vary", "Origin");
+
+  // No cross-origin API access: this endpoint is only for this app.
+  if (!sameOrigin(req)) {
+    return res.status(403).json({ error: "Cross-origin requests are not allowed" });
+  }
+
+  const ipHeader = req.headers["x-forwarded-for"];
+  const ip = (Array.isArray(ipHeader) ? ipHeader[0] : ipHeader)?.split(",")[0]?.trim() || "unknown";
+  if (rateLimited(`ip:${ip}`)) {
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Too many requests" });
+  }
 
   const action =
     (typeof req.query.action === "string" ? req.query.action : undefined) ??
@@ -50,6 +94,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const userId = await requireUserId(req);
     if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+    if (rateLimited(`user:${userId}`)) {
+      res.setHeader("Retry-After", "60");
+      return res.status(429).json({ error: "Too many requests" });
+    }
+
 
     if (action === "subscribe") {
       const { endpoint, p256dh, auth, userAgent } = req.body ?? {};
