@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const supabase = getAdmin();
       const row = {
-        user_id: userId,
+        owner_key: userId,
         endpoint: String(endpoint).slice(0, 2000),
         p256dh: String(p256dh).slice(0, 500),
         auth: String(auth).slice(0, 500),
@@ -116,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       const { error } = await supabase
         .from("push_devices")
-        .upsert(row, { onConflict: "user_id,endpoint" });
+        .upsert(row, { onConflict: "endpoint" });
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json({ ok: true });
     }
@@ -128,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await supabase
         .from("push_devices")
         .delete()
-        .eq("user_id", userId)
+        .eq("owner_key", userId)
         .eq("endpoint", String(endpoint));
       return res.status(200).json({ ok: true });
     }
@@ -141,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: subs, error } = await supabase
         .from("push_devices")
         .select("endpoint, p256dh, auth")
-        .eq("user_id", userId);
+        .eq("owner_key", userId);
       if (error) return res.status(500).json({ error: error.message });
       if (!subs?.length) return res.status(200).json({ sent: 0 });
       // Deduplicate defensively in case a stale duplicate exists.
@@ -187,3 +187,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: message });
   }
 }
+
+
