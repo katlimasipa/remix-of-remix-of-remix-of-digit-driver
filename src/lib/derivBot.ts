@@ -15,6 +15,7 @@ const TH_DPST_CYCLE: Exclude<TriggerMode, "th_dpst">[] = [
 
 export type BotConfig = {
   wsUrl: string | undefined;
+  fetchNewWsUrl?: () => Promise<string | undefined>;
   token: string;
   symbol: string;
   stake: number;
@@ -331,8 +332,16 @@ export class DerivBot {
     const reconnectDelay =
       delay ?? Math.min(30_000, 1000 * 2 ** Math.min(this.reconnectAttempts, 5));
     this.reconnectAttempts += 1;
-    this.reconnectTimer = window.setTimeout(() => {
+    this.reconnectTimer = window.setTimeout(async () => {
       this.reconnectTimer = null;
+      if (this.cfg.fetchNewWsUrl) {
+        try {
+          const newUrl = await this.cfg.fetchNewWsUrl();
+          if (newUrl) this.cfg.wsUrl = newUrl;
+        } catch (e) {
+          console.error("Failed to fetch new ws url for reconnect", e);
+        }
+      }
       this.connect();
     }, reconnectDelay);
   }
@@ -712,5 +721,7 @@ export class DerivBot {
     });
   }
 }
+
+
 
 

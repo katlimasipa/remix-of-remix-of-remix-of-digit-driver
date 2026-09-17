@@ -139,9 +139,9 @@ function Dashboard() {
   // Keep bot configured with the latest wsUrl (fresh OTP for next reconnect).
   // Do NOT disconnect on wsUrl refresh — that killed the bot on tab-change.
   useEffect(() => {
-    setCfg((c) => ({ ...c, wsUrl }));
+    setCfg((c) => ({ ...c, wsUrl, fetchNewWsUrl: refreshWebSocketUrl }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsUrl]);
+  }, [wsUrl, refreshWebSocketUrl]);
 
   useEffect(() => {
     if (s.connected || s.running || s.authorized) shouldStayConnectedRef.current = true;
@@ -497,7 +497,7 @@ function Dashboard() {
 
           <button
             className="btn-secondary w-full"
-            onClick={() => connect()}
+            onClick={async () => { const url = await refreshWebSocketUrl(); if (url) connect(url); }}
             disabled={!wsUrl || s?.connected}
           >
             {s?.authorized ? "Connected" : s?.connected ? "Authorizing..." : "Connect Bot"}
@@ -1263,6 +1263,8 @@ function computeStreakHighlights(
   }
   return out;
 }
+
+
 
 
 
