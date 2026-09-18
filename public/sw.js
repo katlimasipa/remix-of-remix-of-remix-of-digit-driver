@@ -1,6 +1,6 @@
 // Basic offline-capable service worker + Web Push support.
-const CACHE = "smrttrdr-v2";
-const CORE = ["/", "/app-icon.png", "/manifest.webmanifest"];
+const CACHE = "smrttrdr-v3";
+const CORE = ["/", "/app-icon-192.png", "/app-icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -70,8 +70,8 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body,
       tag: tag || "smrttrdr",
-      icon: "/app-icon.png",
-      badge: "/app-icon.png",
+      icon: "/app-icon-192.png",
+      badge: "/app-icon-192.png",
       requireInteraction: !!requireInteraction,
       vibrate: vibrate || [80, 40, 80],
       data: { url: url || "/" },
