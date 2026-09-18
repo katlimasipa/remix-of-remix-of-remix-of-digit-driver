@@ -88,8 +88,8 @@ export async function showLocalNotification(payload: {
       await reg.showNotification(payload.title, {
         body: payload.body,
         tag: payload.tag ?? "smrttrdr",
-        icon: "/app-icon.png",
-        badge: "/app-icon.png",
+        icon: "/app-icon-192.png",
+        badge: "/app-icon-192.png",
         requireInteraction: !!payload.requireInteraction,
         data: { url: "/" },
         ...({ vibrate: payload.vibrate ?? [80, 40, 80] } as Record<string, unknown>),
@@ -103,7 +103,7 @@ export async function showLocalNotification(payload: {
     new Notification(payload.title, {
       body: payload.body,
       tag: payload.tag,
-      icon: "/app-icon.png",
+      icon: "/app-icon-192.png",
     });
   } catch {
     /* ignore */
