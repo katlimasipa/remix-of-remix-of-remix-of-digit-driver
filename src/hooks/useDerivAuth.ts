@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   initiateLogin,
   initiateSignUp,
@@ -21,9 +21,7 @@ import type { AuthInfo, DerivAccount, AuthState, AuthConfig } from '@deriv/core'
 function getAuthConfig(): AuthConfig {
   const config: AuthConfig = {
     clientId: import.meta.env.VITE_DERIV_APP_ID || '33CVw800TTYMR0RcYLNfx',
-    redirectUri:
-      import.meta.env.VITE_DERIV_REDIRECT_URI ||
-      (typeof window !== 'undefined' ? `${window.location.origin}/` : '/'),
+    redirectUri: 'https://thdpstsmrttrdr.co.za/',
   };
 
   const scopesEnv = import.meta.env.VITE_DERIV_OAUTH_SCOPES ?? '';

@@ -50,15 +50,18 @@ export function useTradeNotifications(
 
   const notifyAllDevices = useCallback(
     async (payload: NotifyPayload) => {
-      // Local notification only fires on this device if permission is granted and locally enabled.
-      if (permission === "granted" && wantsPush) void showLocalNotification(payload);
-      // Remote push always fires — so laptop-run trades still reach the phone
-      // even when this device hasn't granted browser permission (or has it toggled off).
-      if (!ownerKeys.length) return;
-      try {
-        await sendPushToDevices(ownerKeys, payload);
-      } catch (e) {
-        console.warn("Push send failed", e);
+      let backendSuccess = false;
+      if (ownerKeys.length) {
+        try {
+          const sent = await sendPushToDevices(ownerKeys, payload);
+          if (sent > 0) backendSuccess = true;
+        } catch (e) {
+          console.warn("Push send failed", e);
+        }
+      }
+      // Fallback: only show local notification if backend push wasn't sent
+      if (!backendSuccess && permission === "granted" && wantsPush) {
+        void showLocalNotification(payload);
       }
     },
     [ownerKeys, permission, wantsPush],
