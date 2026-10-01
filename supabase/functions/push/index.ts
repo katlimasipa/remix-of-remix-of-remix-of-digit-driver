@@ -151,14 +151,16 @@ Deno.serve(async (req) => {
       const expired: string[] = [];
       const failures: { status?: number; message: string }[] = [];
       let sent = 0;
+      const statuses: number[] = [];
       await Promise.all(
         subs.map(async (s) => {
           try {
-            await webpush.sendNotification(
+            const r = await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
               payload,
               { TTL: 3600, urgency: "high" },
             );
+            statuses.push(r.statusCode);
             sent++;
           } catch (err) {
             const e = err as { statusCode?: number; body?: string; message?: string };
@@ -169,7 +171,7 @@ Deno.serve(async (req) => {
       );
       if (expired.length) await admin.from("push_devices").delete().in("endpoint", expired);
       if (failures.length) console.warn("push failures", JSON.stringify(failures));
-      return json({ sent, devices: subs.length, failed: failures.length });
+      return json({ sent, devices: subs.length, failed: failures.length, statuses });
     }
 
     return json({ error: "Unknown action" }, 400);
