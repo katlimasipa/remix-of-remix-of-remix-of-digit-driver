@@ -11,19 +11,22 @@ async function pushApi(action: string, body?: Record<string, unknown>) {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error("Sign in to sync notifications across devices");
-  const res = await fetch(`/api/push?action=${encodeURIComponent(action)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ action, ...body }),
+  // Runs on the app backend, so it works on any domain the site is hosted on.
+  const { data, error } = await supabase.functions.invoke("push", {
+    body: { action, ...body },
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Push API failed (${res.status})`);
+  if (error) {
+    let message = error.message;
+    try {
+      const ctx = (error as { context?: Response }).context;
+      const j = ctx ? await ctx.json() : null;
+      if (j?.error) message = j.error;
+    } catch {
+      /* keep original message */
+    }
+    throw new Error(message || "Push request failed");
   }
-  return data;
+  return data ?? {};
 }
 
 export async function ensurePushSubscription(ownerKeys: string[]): Promise<boolean> {
@@ -69,9 +72,10 @@ export async function sendPushToDevices(
     requireInteraction?: boolean;
     vibrate?: number[];
   },
-): Promise<void> {
-  if (!ownerKeys.length) return;
-  await pushApi("send", payload);
+): Promise<number> {
+  if (!ownerKeys.length) return 0;
+  const res = await pushApi("send", payload);
+  return typeof res.sent === "number" ? res.sent : 0;
 }
 
 export async function showLocalNotification(payload: {
