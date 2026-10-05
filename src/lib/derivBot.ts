@@ -502,6 +502,7 @@ export class DerivBot {
   private async placeTrade(barrierDigit: number, mode: Exclude<TriggerMode, "th_dpst">) {
     // Fire the buy on the wire first, before any state or UI work, so it reaches
     // Deriv on the same tick that triggered it.
+    const signalAt = Date.now();
     const buyPromise = this.send({
       buy: 1,
       price: this.cfg.stake,
@@ -540,7 +541,7 @@ export class DerivBot {
       const contractId = buy.buy.contract_id;
       const trade: Trade = {
         id: String(contractId),
-        time: Date.now(),
+        time: signalAt,
         digit: barrierDigit,
         buyPrice: asFiniteNumber(buy.buy.buy_price, this.cfg.stake),
         status: "open",
