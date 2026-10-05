@@ -500,6 +500,23 @@ export class DerivBot {
   }
 
   private async placeTrade(barrierDigit: number, mode: Exclude<TriggerMode, "th_dpst">) {
+    // Fire the buy on the wire first, before any state or UI work, so it reaches
+    // Deriv on the same tick that triggered it.
+    const signalAt = Date.now();
+    const buyPromise = this.send({
+      buy: 1,
+      price: this.cfg.stake,
+      parameters: {
+        amount: this.cfg.stake,
+        basis: "stake",
+        contract_type: "DIGITDIFF",
+        currency: this.state.currency || "USD",
+        duration: 1,
+        duration_unit: "t",
+        underlying_symbol: SYMBOL,
+        barrier: String(barrierDigit),
+      },
+    });
     if (this.cfg.triggerMode === "th_dpst") {
       const allowed = this.cycleModes();
       let nextCycle = this.state.remainingCycle.filter((m) => m !== mode && allowed.includes(m));
@@ -518,26 +535,13 @@ export class DerivBot {
     this.cooldown = 2;
 
     try {
-      const buy = await this.send({
-          buy: 1,
-          price: this.cfg.stake,
-          parameters: {
-            amount: this.cfg.stake,
-            basis: "stake",
-            contract_type: "DIGITDIFF",
-            currency: this.state.currency || "USD",
-            duration: 1,
-            duration_unit: "t",
-            underlying_symbol: SYMBOL,
-            barrier: String(barrierDigit),
-          }
-        });
+      const buy = await buyPromise;
       if (buy.error) throw new Error(buy.error.message);
 
       const contractId = buy.buy.contract_id;
       const trade: Trade = {
         id: String(contractId),
-        time: Date.now(),
+        time: signalAt,
         digit: barrierDigit,
         buyPrice: asFiniteNumber(buy.buy.buy_price, this.cfg.stake),
         status: "open",
