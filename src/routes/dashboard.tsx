@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
@@ -889,7 +889,15 @@ function Dashboard() {
                     <span className="text-muted-foreground">
                       {cfg.triggerMode === "xxxyyy"
                         ? ""
-                        : ` / ${cfg.repetitionCount}`}
+                        : ` / ${
+                            cfg.triggerMode === "any"
+                              ? cfg.anyRepetitions
+                              : cfg.triggerMode === "odd"
+                                ? cfg.oddRepetitions
+                                : cfg.triggerMode === "even"
+                                  ? cfg.evenRepetitions
+                                  : cfg.repetitionCount
+                          }`}
                     </span>
                   </div>
                 </div>
