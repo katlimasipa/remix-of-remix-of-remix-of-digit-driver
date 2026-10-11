@@ -192,7 +192,11 @@ export function useTradeNotifications(
             ? "Stop Loss hit"
             : event.reason === "take_profit"
               ? "Take Profit reached"
-              : "Stopped manually";
+              : event.reason === "trade_limit"
+                ? "Trade limit reached"
+                : event.reason === "loss_stop"
+                  ? "Stopped after a loss"
+                  : "Stopped manually";
         void notifyAllDevices({
           title: "Bot stopped",
           body: `${reasonLabel}. The bot is no longer trading.`,

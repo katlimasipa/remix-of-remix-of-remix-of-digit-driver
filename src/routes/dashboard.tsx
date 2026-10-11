@@ -767,27 +767,81 @@ function Dashboard() {
 
           <Divider />
           <SectionLabel>Risk</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Stop Loss ($)">
-              <NumInput
-                value={cfg.stopLoss}
-                min={0}
-                step={1}
-                onChange={(v) => setCfg({ ...cfg, stopLoss: v })}
-              />
-            </Field>
-            <Field label="Take Profit ($)">
-              <NumInput
-                value={cfg.takeProfit}
-                min={0}
-                step={1}
-                onChange={(v) => setCfg({ ...cfg, takeProfit: v })}
-              />
-            </Field>
+          <div className="grid grid-cols-2 rounded-md border border-border overflow-hidden text-[11px] font-mono mb-3">
+            {(
+              [
+                ["pnl", "Profit / Loss"],
+                ["trades", "Trade count"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setCfg({ ...cfg, riskMode: mode })}
+                className={`px-3 py-1.5 transition-colors ${
+                  (cfg.riskMode ?? "pnl") === mode
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-
-
-
+          {(cfg.riskMode ?? "pnl") === "pnl" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Stop Loss ($)">
+                <NumInput
+                  value={cfg.stopLoss}
+                  min={0}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, stopLoss: v })}
+                />
+              </Field>
+              <Field label="Take Profit ($)">
+                <NumInput
+                  value={cfg.takeProfit}
+                  min={0}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, takeProfit: v })}
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Number of trades">
+                <NumInput
+                  value={cfg.maxTrades ?? 10}
+                  min={1}
+                  step={1}
+                  onChange={(v) => setCfg({ ...cfg, maxTrades: Math.max(1, Math.floor(v)) })}
+                />
+              </Field>
+              <Field label="Stop after a loss">
+                <div className="grid grid-cols-2 rounded-md border border-border overflow-hidden text-[11px] font-mono">
+                  {(
+                    [
+                      [true, "Yes"],
+                      [false, "No"],
+                    ] as const
+                  ).map(([val, label]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setCfg({ ...cfg, stopOnLoss: val })}
+                      className={`px-3 py-2 transition-colors ${
+                        !!cfg.stopOnLoss === val
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+          )}
 
           {s?.error && (
             <div className="rounded-md border border-bear/40 bg-bear/10 px-3 py-2 text-xs text-bear">

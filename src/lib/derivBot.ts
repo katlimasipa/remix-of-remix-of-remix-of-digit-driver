@@ -26,6 +26,12 @@ export type BotConfig = {
   evenRepetitions: number;
   stopLoss: number;
   takeProfit: number;
+  /** "pnl" = stop by Take Profit / Stop Loss; "trades" = stop after a set number of trades. */
+  riskMode?: "pnl" | "trades";
+  /** Trades to place before stopping (riskMode "trades"). */
+  maxTrades?: number;
+  /** Stop immediately after any losing trade (riskMode "trades"). */
+  stopOnLoss?: boolean;
   triggerMode: TriggerMode;
   /** Sub-strategies included in the TH DPST cycle. Empty/undefined = all six. */
   thDpstModes?: Exclude<TriggerMode, "th_dpst">[];
@@ -67,12 +73,14 @@ export type BotState = {
   patternArmed: Record<Exclude<TriggerMode, "th_dpst">, boolean>;
 };
 
+export type StopReason = "manual" | "stop_loss" | "take_profit" | "trade_limit" | "loss_stop";
+
 export type BotEvent =
   | { type: "trade_settled"; trade: Trade; pnl: number }
   | { type: "stop_loss"; pnl: number }
   | { type: "take_profit"; pnl: number }
   | { type: "bot_started" }
-  | { type: "bot_stopped"; reason: "manual" | "stop_loss" | "take_profit" };
+  | { type: "bot_stopped"; reason: StopReason };
 
 type Listener = (s: BotState) => void;
 type EventListener = (e: BotEvent) => void;
@@ -656,7 +664,17 @@ export class DerivBot {
 
     this.fire({ type: "trade_settled", trade: settledTrade, pnl });
 
-    if (pnl <= -Math.abs(this.cfg.stopLoss)) {
+    if (this.cfg.riskMode === "trades") {
+      const done = this.state.totalTrades - this.tradesAtStart;
+      const limit = Math.max(1, Math.floor(this.cfg.maxTrades ?? 1));
+      if (this.cfg.stopOnLoss && status === "lost") {
+        this.stop("loss_stop");
+        this.patch({ error: `Stopped after a loss (${done} of ${limit} trades, P/L ${pnl.toFixed(2)})` });
+      } else if (done >= limit) {
+        this.stop("trade_limit");
+        this.patch({ error: `Trade limit reached (${done} trades, P/L ${pnl.toFixed(2)})` });
+      }
+    } else if (pnl <= -Math.abs(this.cfg.stopLoss)) {
       this.stop("stop_loss");
       this.patch({ error: `Stop Loss hit (${pnl.toFixed(2)})` });
       this.fire({ type: "stop_loss", pnl });
@@ -667,21 +685,25 @@ export class DerivBot {
     }
   }
 
+  private tradesAtStart = 0;
+
   start() {
     const wasRunning = this.state.running;
+    if (!wasRunning) this.tradesAtStart = this.state.totalTrades;
     this.intentionalDisconnect = false;
     this.patch({ running: true, error: null });
     if (!this.state.connected) this.connect();
     if (!wasRunning) this.fire({ type: "bot_started" });
   }
 
-  stop(reason: "manual" | "stop_loss" | "take_profit" = "manual") {
+  stop(reason: StopReason = "manual") {
     const wasRunning = this.state.running;
     this.patch({ running: false });
     if (wasRunning) this.fire({ type: "bot_stopped", reason });
   }
 
   resetSession() {
+    this.tradesAtStart = 0;
     this.watchedContracts.clear();
     this.settledContracts.clear();
     this.patternWatch = emptyWatch();
