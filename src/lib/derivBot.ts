@@ -703,6 +703,7 @@ export class DerivBot {
   }
 
   resetSession() {
+    this.tradesAtStart = 0;
     this.watchedContracts.clear();
     this.settledContracts.clear();
     this.patternWatch = emptyWatch();
