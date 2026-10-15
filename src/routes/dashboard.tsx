@@ -203,16 +203,6 @@ function Dashboard() {
       ),
     [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount, cfg.sequenceDirection],
   );
-  const seqRun = useMemo(() => {
-    if (digits.length === 0) return 0;
-    const step = cfg.sequenceDirection === "down" ? 9 : 1;
-    let run = 1;
-    for (let i = 1; i < digits.length; i++) {
-      if (digits[i] === (digits[i - 1] - step + 10) % 10) run += 1;
-      else break;
-    }
-    return run;
-  }, [digits, cfg.sequenceDirection]);
   const dpstModes = useMemo(
     () =>
       cfg.thDpstModes?.length
@@ -552,7 +542,7 @@ function Dashboard() {
                     : cfg.triggerMode === "even"
                       ? "Trades when an even digit repeats N times."
                       : cfg.triggerMode === "sequence"
-                      ? "Trades when digits climb or fall in order (e.g. 3-4-5, wraps 9-0); predicts the next digit breaks it."
+                      ? "Trades sequential digit repetitions (e.g. 00 → 11 → 22 ... or in reverse), advancing to the next digit after each trade."
                       : cfg.triggerMode === "th_dpst"
                         ? "Runs one trade of each strategy in a random order per cycle, then repeats."
                         : "Trades when the target digit repeats N times."}
@@ -787,21 +777,20 @@ function Dashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="up">Up (0, 1, 2 ... 9, 0)</SelectItem>
-                      <SelectItem value="down">Down (9, 8, 7 ... 0, 9)</SelectItem>
+                      <SelectItem value="up">Up (00 → 11 → 22 ... 99 → 00)</SelectItem>
+                      <SelectItem value="down">Down (99 → 88 → 77 ... 00 → 99)</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Start digit">
+                <Field label="Starting digit">
                   <Select
-                    value={cfg.sequenceStart === null || cfg.sequenceStart === undefined ? "any" : String(cfg.sequenceStart)}
-                    onValueChange={(v) => setCfg({ ...cfg, sequenceStart: v === "any" ? null : Number(v) })}
+                    value={String(cfg.sequenceStart ?? 0)}
+                    onValueChange={(v) => setCfg({ ...cfg, sequenceStart: Number(v) })}
                   >
                     <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="any">Any digit</SelectItem>
                       {Array.from({ length: 10 }).map((_, i) => (
                         <SelectItem key={i} value={i.toString()}>
                           {i.toString()}
@@ -812,10 +801,10 @@ function Dashboard() {
                 </Field>
                 <Field label={cfg.triggerMode === "th_dpst" ? "Sequence Reps" : "Repetitions"}>
                   <NumInput
-                    value={cfg.sequenceLength ?? 3}
-                    min={2}
+                    value={cfg.sequenceLength ?? 2}
+                    min={1}
                     step={1}
-                    onChange={(v) => setCfg({ ...cfg, sequenceLength: Math.min(10, Math.max(2, v)) })}
+                    onChange={(v) => setCfg({ ...cfg, sequenceLength: Math.max(1, v) })}
                   />
                 </Field>
               </>
@@ -942,7 +931,7 @@ function Dashboard() {
                   <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
                   <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
                     {cfg.triggerMode === "sequence"
-                      ? "Sequence run"
+                      ? `Reps (digit ${s?.sequenceCurrentDigit ?? cfg.sequenceStart ?? 0})`
                       : cfg.triggerMode === "any" ||
                           cfg.triggerMode === "odd" ||
                           cfg.triggerMode === "even"
@@ -953,12 +942,18 @@ function Dashboard() {
                   </div>
                   <div className="font-mono text-xl">
                     {cfg.triggerMode === "sequence" ? (
-                      <>
-                        <span className={seqRun > 1 ? "text-warn" : ""}>{seqRun}</span>
-                        <span className="text-muted-foreground">
-                          {` / ${cfg.sequenceLength ?? 3}`}
-                        </span>
-                      </>
+                      (() => {
+                        const target = s?.sequenceCurrentDigit ?? cfg.sequenceStart ?? 0;
+                        const curStreak = s?.streakDigit === target ? (s?.streak ?? 0) : 0;
+                        return (
+                          <>
+                            <span className={curStreak > 0 ? "text-warn" : ""}>{curStreak}</span>
+                            <span className="text-muted-foreground">
+                              {` / ${cfg.sequenceLength ?? 2}`}
+                            </span>
+                          </>
+                        );
+                      })()
                     ) : (
                       <>
                         <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
@@ -1184,7 +1179,7 @@ function Dashboard() {
                         : cfg.triggerMode === "even"
                           ? "Even reps"
                           : cfg.triggerMode === "sequence"
-                          ? `Sequence ${cfg.sequenceDirection === "down" ? "down" : "up"}`
+                          ? `Sequence ${cfg.sequenceDirection === "down" ? "down" : "up"} (digit ${s?.sequenceCurrentDigit ?? cfg.sequenceStart ?? 0})`
                           : `Digit ${cfg.targetDigit}`
             }
           />
@@ -1194,7 +1189,7 @@ function Dashboard() {
               (cfg.triggerMode === "xxxyyy")
                 ? "Pattern"
                 : cfg.triggerMode === "sequence"
-                ? String(cfg.sequenceLength ?? 3)
+                ? String(cfg.sequenceLength ?? 2)
                 : cfg.triggerMode === "any"
                   ? String(cfg.anyRepetitions)
                   : cfg.triggerMode === "odd"
@@ -1207,7 +1202,7 @@ function Dashboard() {
           <Row
             k={
               cfg.triggerMode === "sequence"
-                ? "Sequence run"
+                ? `Reps waited (digit ${s?.sequenceCurrentDigit ?? cfg.sequenceStart ?? 0})`
                 : cfg.triggerMode === "any" ||
                   cfg.triggerMode === "odd" ||
                   cfg.triggerMode === "even"
@@ -1218,7 +1213,11 @@ function Dashboard() {
                     ? `Simultaneous Cycle`
                     : "Streak"
             }
-            v={cfg.triggerMode === "sequence" ? `${seqRun}` : `${s?.streak ?? 0}`}
+            v={
+              cfg.triggerMode === "sequence"
+                ? `${s?.streakDigit === (s?.sequenceCurrentDigit ?? cfg.sequenceStart ?? 0) ? (s?.streak ?? 0) : 0}`
+                : `${s?.streak ?? 0}`
+            }
           />
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
@@ -1390,21 +1389,6 @@ function computeStreakHighlights(
         out[0] = out[1] = out[2] = cA;
         out[3] = out[4] = out[5] = cB;
       }
-    }
-    return out;
-  }
-
-  // Sequence mode: highlight current active sequence run (length >= 2)
-  if (mode === "sequence") {
-    const step = sequenceDirection === "down" ? 9 : 1;
-    let run = 1;
-    for (let i = 1; i < digits.length; i++) {
-      if (digits[i] === (digits[i - 1] - step + 10) % 10) run += 1;
-      else break;
-    }
-    if (run >= 2) {
-      const color = sequenceDirection === "down" ? "27 90% 55%" : "142 70% 45%";
-      for (let k = 0; k < run; k++) out[k] = color;
     }
     return out;
   }

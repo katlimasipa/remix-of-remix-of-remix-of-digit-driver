@@ -70,10 +70,10 @@ const STRATEGIES: { key: StrategyKey; name: string; desc: string; digits: string
   {
     key: "sequence",
     name: "Sequence (up / down)",
-    desc: "Detects consecutive climbing or falling digits (e.g. 3-4-5 or 7-6-5); predicts the next digit will break the sequence.",
-    digits: "1 4 2 3 4 5 9",
-    hi: [2, 3, 4, 5],
-    barrier: "6",
+    desc: "Trades sequential digit repetitions (e.g. 00 → 11 → 22 ... or in reverse), moving to the next digit after each trade.",
+    digits: "4 0 0 7 1 1 5",
+    hi: [1, 2],
+    barrier: "0",
   },
   {
     key: "thdpst",

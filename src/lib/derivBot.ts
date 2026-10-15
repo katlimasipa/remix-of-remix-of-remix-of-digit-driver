@@ -78,6 +78,8 @@ export type BotState = {
   remainingCycle: Exclude<TriggerMode, "th_dpst">[];
   /** Whether a prior occurrence has already failed (armed to trade next time), per strategy. */
   patternArmed: Record<Exclude<TriggerMode, "th_dpst">, boolean>;
+  /** The current active digit for the sequence strategy. */
+  sequenceCurrentDigit: number | null;
 };
 
 export type StopReason = "manual" | "stop_loss" | "take_profit" | "trade_limit" | "loss_stop";
@@ -135,7 +137,9 @@ export class DerivBot {
     pendingTrade: false,
     remainingCycle: [...TH_DPST_CYCLE],
     patternArmed: emptyArmed(),
+    sequenceCurrentDigit: 0,
   };
+  private sequenceCurrentDigit: number = 0;
   private reqId = 1;
   private pending = new Map<number, (msg: any) => void>();
   private reconnectTimer: number | null = null;
@@ -168,6 +172,8 @@ export class DerivBot {
 
   constructor(cfg: BotConfig) {
     this.cfg = cfg;
+    this.sequenceCurrentDigit = cfg.sequenceStart ?? 0;
+    this.state.sequenceCurrentDigit = this.sequenceCurrentDigit;
     if (cfg.triggerMode === "th_dpst") {
       this.state.remainingCycle = this.shuffleArray(this.cycleModes());
     }
@@ -218,6 +224,10 @@ export class DerivBot {
       (p.triggerMode !== undefined && p.triggerMode !== previousTrigger)
     ) {
       this.patch({ remainingCycle: this.shuffleArray(this.cycleModes()) });
+    }
+    if (p.sequenceStart !== undefined && !this.state.running) {
+      this.sequenceCurrentDigit = p.sequenceStart ?? 0;
+      this.patch({ sequenceCurrentDigit: this.sequenceCurrentDigit });
     }
     if (
       p.wsUrl &&
@@ -466,24 +476,11 @@ export class DerivBot {
       }
     }
 
-    // Sequence: last N digits step by +1 (up) or -1 (down), wrapping 9->0 / 0->9.
-    // ticks[0] is newest, so the sequence start is ticks[N-1]. Barrier = next digit in the sequence.
-    let sequenceBarrier: number | null = null;
-    {
-      const n = Math.max(2, Math.floor(this.cfg.sequenceLength ?? 3));
-      const step = this.cfg.sequenceDirection === "down" ? 9 : 1;
-      const tk = this.state.ticks;
-      if (tk.length >= n) {
-        let ok = true;
-        for (let i = 0; i < n - 1; i++) {
-          if (tk[i].digit !== (tk[i + 1].digit + step) % 10) { ok = false; break; }
-        }
-        const start = this.cfg.sequenceStart;
-        if (ok && (start === null || start === undefined || tk[n - 1].digit === start)) {
-          sequenceBarrier = (tk[0].digit + step) % 10;
-        }
-      }
-    }
+    // Sequence (sequential digit repetitions): current target digit repeats N times.
+    // e.g. Starting with digit 0 and 2 reps waits for 00 -> barrier is 0 (Differ != 0).
+    const seqTarget = this.sequenceCurrentDigit ?? this.cfg.sequenceStart ?? 0;
+    const seqReps = Math.max(1, Math.floor(this.cfg.sequenceLength ?? 2));
+    const sequenceBarrier = (digit === seqTarget && streak === seqReps) ? seqTarget : null;
 
     // Raw trigger (barrier digit) per strategy, before wait-for-fail gating.
     const rawBarrier = (m: SubMode): number | null => {
@@ -561,6 +558,11 @@ export class DerivBot {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null, remainingCycle: nextCycle });
     } else {
       this.patch({ pendingTrade: true, streak: 0, streakDigit: null });
+    }
+    if (mode === "sequence") {
+      const step = this.cfg.sequenceDirection === "down" ? 9 : 1;
+      this.sequenceCurrentDigit = (this.sequenceCurrentDigit + step) % 10;
+      this.patch({ sequenceCurrentDigit: this.sequenceCurrentDigit });
     }
     this.patternWatch[mode] = null;
     this.armedDigit[mode] = null;
@@ -716,9 +718,12 @@ export class DerivBot {
 
   start() {
     const wasRunning = this.state.running;
-    if (!wasRunning) this.tradesAtStart = this.state.totalTrades;
+    if (!wasRunning) {
+      this.tradesAtStart = this.state.totalTrades;
+      this.sequenceCurrentDigit = this.cfg.sequenceStart ?? 0;
+    }
     this.intentionalDisconnect = false;
-    this.patch({ running: true, error: null });
+    this.patch({ running: true, error: null, sequenceCurrentDigit: this.sequenceCurrentDigit });
     if (!this.state.connected) this.connect();
     if (!wasRunning) this.fire({ type: "bot_started" });
   }
@@ -735,6 +740,7 @@ export class DerivBot {
     this.settledContracts.clear();
     this.patternWatch = emptyWatch();
     this.armedDigit = emptyWatch();
+    this.sequenceCurrentDigit = this.cfg.sequenceStart ?? 0;
 
     this.patch({
       pnl: 0,
@@ -747,6 +753,7 @@ export class DerivBot {
       error: null,
       remainingCycle: this.shuffleArray(this.cycleModes()),
       patternArmed: emptyArmed(),
+      sequenceCurrentDigit: this.sequenceCurrentDigit,
     });
   }
 
