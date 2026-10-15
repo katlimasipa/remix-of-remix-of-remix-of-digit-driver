@@ -11,13 +11,16 @@ const DEFAULT_CFG: BotConfig = {
   anyRepetitions: 3,
   oddRepetitions: 3,
   evenRepetitions: 3,
+  sequenceDirection: "up",
+  sequenceStart: null,
+  sequenceLength: 3,
   stopLoss: 10,
   takeProfit: 10,
   riskMode: "pnl",
   maxTrades: 10,
   stopOnLoss: false,
   triggerMode: "specific",
-  thDpstModes: ["specific", "any", "xxxyyy", "odd", "even"],
+  thDpstModes: ["specific", "any", "xxxyyy", "odd", "even", "sequence"],
   waitFailModes: [],
 };
 
