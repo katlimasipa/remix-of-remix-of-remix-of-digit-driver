@@ -193,8 +193,15 @@ function Dashboard() {
 
   const digits = useMemo(() => s?.ticks.slice(0, 30).map((t) => t.digit) ?? [], [s?.ticks]);
   const streakMap = useMemo(
-    () => computeStreakHighlights(digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount),
-    [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
+    () =>
+      computeStreakHighlights(
+        digits,
+        cfg.triggerMode,
+        cfg.targetDigit,
+        cfg.repetitionCount,
+        cfg.sequenceDirection,
+      ),
+    [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount, cfg.sequenceDirection],
   );
   const seqRun = useMemo(() => {
     if (digits.length === 0) return 0;
@@ -803,7 +810,7 @@ function Dashboard() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label={cfg.triggerMode === "th_dpst" ? "Sequence length" : "Digits in sequence"}>
+                <Field label={cfg.triggerMode === "th_dpst" ? "Sequence Reps" : "Repetitions"}>
                   <NumInput
                     value={cfg.sequenceLength ?? 3}
                     min={2}
@@ -1199,9 +1206,11 @@ function Dashboard() {
           />
           <Row
             k={
-              cfg.triggerMode === "any" ||
-              cfg.triggerMode === "odd" ||
-              cfg.triggerMode === "even"
+              cfg.triggerMode === "sequence"
+                ? "Sequence run"
+                : cfg.triggerMode === "any" ||
+                  cfg.triggerMode === "odd" ||
+                  cfg.triggerMode === "even"
                 ? `Reps waited (digit ${s?.streakDigit ?? "—"})`
                 : cfg.triggerMode === "xxxyyy"
                   ? "Pattern streak"
@@ -1209,7 +1218,7 @@ function Dashboard() {
                     ? `Simultaneous Cycle`
                     : "Streak"
             }
-            v={`${s?.streak ?? 0}`}
+            v={cfg.triggerMode === "sequence" ? `${seqRun}` : `${s?.streak ?? 0}`}
           />
           <Row k="Symbol" v="1HZ100V" />
           <Row k="Duration" v="1 tick" />
@@ -1366,6 +1375,7 @@ function computeStreakHighlights(
   mode: TriggerMode,
   targetDigit: number,
   _reps: number,
+  sequenceDirection: "up" | "down" = "up",
 ): (string | null)[] {
   const out: (string | null)[] = digits.map(() => null);
   if (!digits.length) return out;
@@ -1380,6 +1390,21 @@ function computeStreakHighlights(
         out[0] = out[1] = out[2] = cA;
         out[3] = out[4] = out[5] = cB;
       }
+    }
+    return out;
+  }
+
+  // Sequence mode: highlight current active sequence run (length >= 2)
+  if (mode === "sequence") {
+    const step = sequenceDirection === "down" ? 9 : 1;
+    let run = 1;
+    for (let i = 1; i < digits.length; i++) {
+      if (digits[i] === (digits[i - 1] - step + 10) % 10) run += 1;
+      else break;
+    }
+    if (run >= 2) {
+      const color = sequenceDirection === "down" ? "27 90% 55%" : "142 70% 45%";
+      for (let k = 0; k < run; k++) out[k] = color;
     }
     return out;
   }

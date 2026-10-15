@@ -24,7 +24,7 @@ const STEPS = [
   ["Save the session", "End and save a run to keep it in your history, stored separately for demo and real accounts."],
 ] as const;
 
-type StrategyKey = "specific" | "any" | "xxxyyy" | "odd" | "even" | "thdpst";
+type StrategyKey = "specific" | "any" | "xxxyyy" | "odd" | "even" | "sequence" | "thdpst";
 
 const STRATEGIES: { key: StrategyKey; name: string; desc: string; digits: string; hi: number[]; barrier?: string }[] = [
   {
@@ -66,6 +66,14 @@ const STRATEGIES: { key: StrategyKey; name: string; desc: string; digits: string
     digits: "5 8 8 8 8 1 9",
     hi: [1, 2, 3, 4],
     barrier: "8",
+  },
+  {
+    key: "sequence",
+    name: "Sequence (up / down)",
+    desc: "Detects consecutive climbing or falling digits (e.g. 3-4-5 or 7-6-5); predicts the next digit will break the sequence.",
+    digits: "1 4 2 3 4 5 9",
+    hi: [2, 3, 4, 5],
+    barrier: "6",
   },
   {
     key: "thdpst",
