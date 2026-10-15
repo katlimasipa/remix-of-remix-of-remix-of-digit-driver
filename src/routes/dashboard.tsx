@@ -196,6 +196,16 @@ function Dashboard() {
     () => computeStreakHighlights(digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount),
     [digits, cfg.triggerMode, cfg.targetDigit, cfg.repetitionCount],
   );
+  const seqRun = useMemo(() => {
+    if (digits.length === 0) return 0;
+    const step = cfg.sequenceDirection === "down" ? 9 : 1;
+    let run = 1;
+    for (let i = 1; i < digits.length; i++) {
+      if (digits[i] === (digits[i - 1] - step + 10) % 10) run += 1;
+      else break;
+    }
+    return run;
+  }, [digits, cfg.sequenceDirection]);
   const dpstModes = useMemo(
     () =>
       cfg.thDpstModes?.length
