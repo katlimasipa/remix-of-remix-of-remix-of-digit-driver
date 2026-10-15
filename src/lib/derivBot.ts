@@ -1,7 +1,7 @@
 // Browser-side Deriv WebSocket bot — Digits Differ on Volatility 100
 // Uses OAuth WebSocket URL with OTP from @deriv/core.
 
-export type TriggerMode = "specific" | "any" | "xxxyyy" | "odd" | "even" | "th_dpst";
+export type TriggerMode = "specific" | "any" | "xxxyyy" | "odd" | "even" | "sequence" | "th_dpst";
 
 // TH DPST Strtgy cycles through these six sub-strategies, one trade per step,
 // then loops back to the beginning until stop-loss / take-profit / manual stop.
@@ -11,6 +11,7 @@ const TH_DPST_CYCLE: Exclude<TriggerMode, "th_dpst">[] = [
   "xxxyyy",
   "odd",
   "even",
+  "sequence",
 ];
 
 export type BotConfig = {
@@ -24,6 +25,12 @@ export type BotConfig = {
   anyRepetitions: number;
   oddRepetitions: number;
   evenRepetitions: number;
+  /** Sequence strategy: digits climbing (up) or falling (down) one step at a time, wrapping 9-0. */
+  sequenceDirection?: "up" | "down";
+  /** Digit the sequence must start from; null = any start digit. */
+  sequenceStart?: number | null;
+  /** How many digits in a row form the sequence before entering. */
+  sequenceLength?: number;
   stopLoss: number;
   takeProfit: number;
   /** "pnl" = stop by Take Profit / Stop Loss; "trades" = stop after a set number of trades. */
@@ -88,14 +95,14 @@ type EventListener = (e: BotEvent) => void;
 const SYMBOL = "1HZ100V";
 
 type SubMode = Exclude<TriggerMode, "th_dpst">;
-const SUB_MODES: SubMode[] = ["specific", "any", "xxxyyy", "odd", "even"];
+const SUB_MODES: SubMode[] = ["specific", "any", "xxxyyy", "odd", "even", "sequence"];
 
 function emptyArmed(): Record<SubMode, boolean> {
-  return { specific: false, any: false, xxxyyy: false, odd: false, even: false };
+  return { specific: false, any: false, xxxyyy: false, odd: false, even: false, sequence: false };
 }
 
 function emptyWatch(): Record<SubMode, number | null> {
-  return { specific: null, any: null, xxxyyy: null, odd: null, even: null };
+  return { specific: null, any: null, xxxyyy: null, odd: null, even: null, sequence: null };
 }
 
 function asFiniteNumber(value: unknown, fallback = 0): number {
@@ -459,9 +466,29 @@ export class DerivBot {
       }
     }
 
+    // Sequence: last N digits step by +1 (up) or -1 (down), wrapping 9->0 / 0->9.
+    // ticks[0] is newest, so the sequence start is ticks[N-1]. Barrier = next digit in the sequence.
+    let sequenceBarrier: number | null = null;
+    {
+      const n = Math.max(2, Math.floor(this.cfg.sequenceLength ?? 3));
+      const step = this.cfg.sequenceDirection === "down" ? 9 : 1;
+      const tk = this.state.ticks;
+      if (tk.length >= n) {
+        let ok = true;
+        for (let i = 0; i < n - 1; i++) {
+          if (tk[i].digit !== (tk[i + 1].digit + step) % 10) { ok = false; break; }
+        }
+        const start = this.cfg.sequenceStart;
+        if (ok && (start === null || start === undefined || tk[n - 1].digit === start)) {
+          sequenceBarrier = (tk[0].digit + step) % 10;
+        }
+      }
+    }
+
     // Raw trigger (barrier digit) per strategy, before wait-for-fail gating.
     const rawBarrier = (m: SubMode): number | null => {
       if (m === "xxxyyy") return xxxyyyBarrier;
+      if (m === "sequence") return sequenceBarrier;
       if (m === "any") return streak === this.cfg.anyRepetitions ? digit : null;
       if (m === "odd") return digit % 2 !== 0 && streak === this.cfg.oddRepetitions ? digit : null;
       if (m === "even")

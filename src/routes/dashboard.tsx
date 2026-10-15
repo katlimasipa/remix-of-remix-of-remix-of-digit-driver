@@ -40,7 +40,7 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-const TH_DPST_ALL = ["specific", "any", "xxxyyy", "odd", "even"] as const satisfies readonly Exclude<TriggerMode, "th_dpst">[];
+const TH_DPST_ALL = ["specific", "any", "xxxyyy", "odd", "even", "sequence"] as const satisfies readonly Exclude<TriggerMode, "th_dpst">[];
 
 const TH_DPST_LABELS: Record<Exclude<TriggerMode, "th_dpst">, string> = {
   specific: "Specific digit",
@@ -48,6 +48,7 @@ const TH_DPST_LABELS: Record<Exclude<TriggerMode, "th_dpst">, string> = {
   xxxyyy: "XXXYYY = Z",
   odd: "Odd reps",
   even: "Even reps",
+  sequence: "Sequence",
 };
 
 function useAnimatedNumber(value: number, duration = 400) {
@@ -97,8 +98,8 @@ function Dashboard() {
     totalTrades: 0,
     error: null,
     pendingTrade: false,
-    remainingCycle: [] as ("specific" | "any" | "xxxyyy" | "odd" | "even")[],
-    patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false },
+    remainingCycle: [] as Exclude<TriggerMode, "th_dpst">[],
+    patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false, sequence: false },
 
   };
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
@@ -519,6 +520,7 @@ function Dashboard() {
                 <SelectItem value="xxxyyy">XXXYYY = Z</SelectItem>
                 <SelectItem value="odd">Odd reps</SelectItem>
                 <SelectItem value="even">Even reps</SelectItem>
+                <SelectItem value="sequence">Sequence (up / down)</SelectItem>
                 <SelectItem value="th_dpst">TH DPST Strtgy (combo)</SelectItem>
               </SelectContent>
             </Select>
@@ -532,6 +534,8 @@ function Dashboard() {
                     ? "Trades when an odd digit repeats N times."
                     : cfg.triggerMode === "even"
                       ? "Trades when an even digit repeats N times."
+                      : cfg.triggerMode === "sequence"
+                      ? "Trades when digits climb or fall in order (e.g. 3-4-5, wraps 9-0); predicts the next digit breaks it."
                       : cfg.triggerMode === "th_dpst"
                         ? "Runs one trade of each strategy in a random order per cycle, then repeats."
                         : "Trades when the target digit repeats N times."}
@@ -754,6 +758,50 @@ function Dashboard() {
                   onChange={(v) => setCfg({ ...cfg, evenRepetitions: Math.max(1, v) })}
                 />
               </Field>
+            )}
+            {(cfg.triggerMode === "sequence" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("sequence"))) && (
+              <>
+                <Field label="Sequence direction">
+                  <Select
+                    value={cfg.sequenceDirection ?? "up"}
+                    onValueChange={(v) => setCfg({ ...cfg, sequenceDirection: v as "up" | "down" })}
+                  >
+                    <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="up">Up (0, 1, 2 ... 9, 0)</SelectItem>
+                      <SelectItem value="down">Down (9, 8, 7 ... 0, 9)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Start digit">
+                  <Select
+                    value={cfg.sequenceStart === null || cfg.sequenceStart === undefined ? "any" : String(cfg.sequenceStart)}
+                    onValueChange={(v) => setCfg({ ...cfg, sequenceStart: v === "any" ? null : Number(v) })}
+                  >
+                    <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any digit</SelectItem>
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <SelectItem key={i} value={i.toString()}>
+                          {i.toString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={cfg.triggerMode === "th_dpst" ? "Sequence length" : "Digits in sequence"}>
+                  <NumInput
+                    value={cfg.sequenceLength ?? 3}
+                    min={2}
+                    step={1}
+                    onChange={(v) => setCfg({ ...cfg, sequenceLength: Math.min(10, Math.max(2, v)) })}
+                  />
+                </Field>
+              </>
             )}
             <Field label="Stake (USD)">
               <NumInput
@@ -1105,6 +1153,8 @@ function Dashboard() {
                         ? "Odd reps"
                         : cfg.triggerMode === "even"
                           ? "Even reps"
+                          : cfg.triggerMode === "sequence"
+                          ? `Sequence ${cfg.sequenceDirection === "down" ? "down" : "up"}`
                           : `Digit ${cfg.targetDigit}`
             }
           />
@@ -1113,6 +1163,8 @@ function Dashboard() {
             v={
               (cfg.triggerMode === "xxxyyy")
                 ? "Pattern"
+                : cfg.triggerMode === "sequence"
+                ? String(cfg.sequenceLength ?? 3)
                 : cfg.triggerMode === "any"
                   ? String(cfg.anyRepetitions)
                   : cfg.triggerMode === "odd"
