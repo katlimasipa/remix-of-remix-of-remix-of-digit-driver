@@ -934,29 +934,42 @@ function Dashboard() {
                   </div>
                   <div className="font-mono text-xl">{s?.lastPrice?.toFixed(2) ?? "—"}</div>
                   <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">
-                    {cfg.triggerMode === "any" ||
-                    cfg.triggerMode === "odd" ||
-                    cfg.triggerMode === "even"
-                      ? `Reps (digit ${s?.streakDigit ?? "—"})`
-                      : cfg.triggerMode === "xxxyyy"
-                        ? "Pattern"
-                        : "Streak"}
+                    {cfg.triggerMode === "sequence"
+                      ? "Sequence run"
+                      : cfg.triggerMode === "any" ||
+                          cfg.triggerMode === "odd" ||
+                          cfg.triggerMode === "even"
+                        ? `Reps (digit ${s?.streakDigit ?? "—"})`
+                        : cfg.triggerMode === "xxxyyy"
+                          ? "Pattern"
+                          : "Streak"}
                   </div>
                   <div className="font-mono text-xl">
-                    <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
-                    <span className="text-muted-foreground">
-                      {cfg.triggerMode === "xxxyyy"
-                        ? ""
-                        : ` / ${
-                            cfg.triggerMode === "any"
-                              ? cfg.anyRepetitions
-                              : cfg.triggerMode === "odd"
-                                ? cfg.oddRepetitions
-                                : cfg.triggerMode === "even"
-                                  ? cfg.evenRepetitions
-                                  : cfg.repetitionCount
-                          }`}
-                    </span>
+                    {cfg.triggerMode === "sequence" ? (
+                      <>
+                        <span className={seqRun > 1 ? "text-warn" : ""}>{seqRun}</span>
+                        <span className="text-muted-foreground">
+                          {` / ${cfg.sequenceLength ?? 3}`}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={s && s.streak > 0 ? "text-warn" : ""}>{s?.streak ?? 0}</span>
+                        <span className="text-muted-foreground">
+                          {cfg.triggerMode === "xxxyyy"
+                            ? ""
+                            : ` / ${
+                                cfg.triggerMode === "any"
+                                  ? cfg.anyRepetitions
+                                  : cfg.triggerMode === "odd"
+                                    ? cfg.oddRepetitions
+                                    : cfg.triggerMode === "even"
+                                      ? cfg.evenRepetitions
+                                      : cfg.repetitionCount
+                              }`}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
