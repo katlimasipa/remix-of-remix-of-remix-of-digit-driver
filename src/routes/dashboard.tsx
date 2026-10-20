@@ -515,8 +515,14 @@ function Dashboard() {
           <SectionLabel>Strategy</SectionLabel>
           <Field label="Mode">
             <Select 
-              value={cfg.triggerMode} 
-              onValueChange={(val) => setCfg({ ...cfg, triggerMode: val as TriggerMode })}
+              value={cfg.triggerMode === "sequence" ? (cfg.sequenceDirection === "down" ? "sequence_down" : "sequence_up") : cfg.triggerMode} 
+              onValueChange={(val) => {
+                if (val === "sequence_up" || val === "sequence_down") {
+                  setCfg({ ...cfg, triggerMode: "sequence" as TriggerMode, sequenceDirection: val === "sequence_down" ? "down" : "up" });
+                } else {
+                  setCfg({ ...cfg, triggerMode: val as TriggerMode });
+                }
+              }}
             >
               <SelectTrigger className="w-full bg-input border-border h-[34px] focus:ring-1 focus:ring-ring">
                 <SelectValue />
@@ -527,7 +533,8 @@ function Dashboard() {
                 <SelectItem value="xxxyyy">XXXYYY = Z</SelectItem>
                 <SelectItem value="odd">Odd reps</SelectItem>
                 <SelectItem value="even">Even reps</SelectItem>
-                <SelectItem value="sequence">Sequence (up / down)</SelectItem>
+                <SelectItem value="sequence_up">Sequence up</SelectItem>
+                <SelectItem value="sequence_down">Sequence down</SelectItem>
                 <SelectItem value="th_dpst">TH DPST Strtgy (combo)</SelectItem>
               </SelectContent>
             </Select>
@@ -768,6 +775,7 @@ function Dashboard() {
             )}
             {(cfg.triggerMode === "sequence" || (cfg.triggerMode === "th_dpst" && dpstModes.includes("sequence"))) && (
               <>
+                {cfg.triggerMode === "th_dpst" && (
                 <Field label="Sequence direction">
                   <Select
                     value={cfg.sequenceDirection ?? "up"}
@@ -782,6 +790,7 @@ function Dashboard() {
                     </SelectContent>
                   </Select>
                 </Field>
+                )}
                 <Field label="Starting digit">
                   <Select
                     value={String(cfg.sequenceStart ?? 0)}
