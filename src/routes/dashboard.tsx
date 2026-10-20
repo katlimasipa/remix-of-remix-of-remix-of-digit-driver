@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
 import { useAppAuth } from "@/hooks/useAppAuth";
-import type { TriggerMode } from "@/lib/derivBot";
+import type { TriggerMode, BotState } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
 import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save, Sun, Moon } from "lucide-react";
