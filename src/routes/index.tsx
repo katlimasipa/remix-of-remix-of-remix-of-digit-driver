@@ -126,7 +126,7 @@ function LandingPage() {
 function Nav() {
   return (
     <nav className="fixed top-0 z-50 w-full pt-safe">
-      <div className="mx-auto mt-3 flex max-w-6xl items-center justify-between rounded-2xl border border-border bg-background/75 px-4 py-2.5 shadow-sm backdrop-blur-xl sm:mx-6 lg:mx-auto">
+      <div className="mx-auto mt-3 flex max-w-6xl items-center justify-between rounded-2xl bg-background/75 px-4 py-2.5 shadow-sm backdrop-blur-xl sm:mx-6 lg:mx-auto">
         <Link to="/" className="flex items-center">
           <img src="/logo-light.png" alt="ThDpstSmrtTrdr" className="h-9 w-auto dark:hidden" />
           <img src="/logo-dark.png" alt="ThDpstSmrtTrdr" className="hidden h-9 w-auto dark:block" />
