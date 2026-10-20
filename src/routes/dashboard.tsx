@@ -100,8 +100,8 @@ function Dashboard() {
     pendingTrade: false,
     remainingCycle: [] as Exclude<TriggerMode, "th_dpst">[],
     patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false, sequence: false },
-
-  };
+    sequenceCurrentDigit: null as number | null,
+  } as BotState;
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
   const [feedTab, setFeedTab] = useState<"log" | "history">("log");
