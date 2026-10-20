@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDerivBot } from "@/hooks/useDerivBot";
 import { useDerivAuth } from "@/hooks/useDerivAuth";
 import { useAppAuth } from "@/hooks/useAppAuth";
-import type { TriggerMode } from "@/lib/derivBot";
+import type { TriggerMode, BotState } from "@/lib/derivBot";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Footer } from "@/components/Footer";
 import { LogOut, Settings2, Activity, BarChart3, Bell, BellOff, History, Save, Sun, Moon } from "lucide-react";
@@ -100,8 +100,8 @@ function Dashboard() {
     pendingTrade: false,
     remainingCycle: [] as Exclude<TriggerMode, "th_dpst">[],
     patternArmed: { specific: false, any: false, xxxyyy: false, odd: false, even: false, sequence: false },
-
-  };
+    sequenceCurrentDigit: null as number | null,
+  } as BotState;
   const pnlAnim = useAnimatedNumber(s?.pnl ?? 0);
   const [mobileTab, setMobileTab] = useState<"controls" | "live" | "stats">("live");
   const [feedTab, setFeedTab] = useState<"log" | "history">("log");
@@ -816,6 +816,30 @@ function Dashboard() {
                 step={0.5}
                 onChange={(v) => setCfg({ ...cfg, stake: v })}
               />
+              <div className="mt-1.5 grid grid-cols-4 gap-1">
+                {[25, 50, 75, 100].map((pct) => {
+                  const bal = s.balance;
+                  const disabled = bal == null || bal <= 0;
+                  const amt = bal != null ? Math.floor(bal * pct) / 100 : 0;
+                  const active = !disabled && Math.abs(cfg.stake - Math.max(0.35, amt)) < 0.005;
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      disabled={disabled}
+                      title={disabled ? "Connect an account to use balance %" : `Stake ${amt.toFixed(2)}`}
+                      onClick={() => setCfg({ ...cfg, stake: Math.max(0.35, amt) })}
+                      className={`rounded border px-1 py-1 font-mono text-[10px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-surface-2 text-muted-foreground hover:text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
           </div>
 
@@ -1288,9 +1312,8 @@ function NumInput({ value, min, step, onChange }: { value: number; min: number; 
       value={draft !== null ? draft : (value || "")}
       min={min}
       step={step}
-      onFocus={(e) => {
-        setDraft("");
-        requestAnimationFrame(() => e.target.select());
+      onFocus={() => {
+        setDraft(value ? String(value) : "");
       }}
       onChange={(e) => {
         setDraft(e.target.value);
