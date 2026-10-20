@@ -790,6 +790,7 @@ function Dashboard() {
                     </SelectContent>
                   </Select>
                 </Field>
+                )}
                 <Field label="Starting digit">
                   <Select
                     value={String(cfg.sequenceStart ?? 0)}
