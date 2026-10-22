@@ -1314,23 +1314,32 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 function NumInput({ value, min, step, onChange }: { value: number; min: number; step: number; onChange: (v: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // iOS blocks the comma in type="number" fields, so use a text field and
+  // treat a comma the same as a dot. Users can type 1.5 or 1,5.
+  const sanitize = (raw: string) => {
+    const cleaned = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+    const first = cleaned.indexOf(".");
+    if (first === -1) return cleaned;
+    return cleaned.slice(0, first + 1) + cleaned.slice(first + 1).replace(/\./g, "");
+  };
+  const parse = (s: string) => parseFloat(s.replace(/,/g, "."));
   return (
     <input
-      type="number"
+      type="text"
       inputMode="decimal"
+      autoComplete="off"
       value={draft !== null ? draft : (value || "")}
-      min={min}
-      step={step}
       onFocus={() => {
         setDraft(value ? String(value) : "");
       }}
       onChange={(e) => {
-        setDraft(e.target.value);
-        const n = parseFloat(e.target.value);
+        const clean = sanitize(e.target.value);
+        setDraft(clean);
+        const n = parse(clean);
         if (Number.isFinite(n)) onChange(n);
       }}
-      onBlur={(e) => {
-        const n = parseFloat(e.target.value);
+      onBlur={() => {
+        const n = draft !== null ? parse(draft) : value;
         onChange(Number.isFinite(n) ? Math.max(min, n) : min);
         setDraft(null);
       }}
